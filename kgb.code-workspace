@@ -1,0 +1,46 @@
+{
+    "folders": [
+        {
+            "name": "Frontend (Nuxt)",
+            "path": "client"
+        },
+        {
+            "name": "Backend (Laravel)",
+            "path": "api"
+        }
+    ],
+    "settings": {
+        "files.associations": {
+            "*.css": "tailwindcss"
+        },
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[php]": {
+            "editor.defaultFormatter": "bmewburn.vscode-intelephense-client"
+        },
+        "intelephense.environment.phpVersion": "8.3.0",
+        "intelephense.laravel.registration": "api/storage/framework/cache/data",
+        "tailwindCSS.experimental.classRegex": [
+            ["\\b(?:twMerge|twJoin|clsx|classnames)\\(([^)]*)\\)", "'([^']*)'"]
+        ],
+        "typescript.tsdk": "client/node_modules/typescript/lib",
+        "volar.autoInsert.dotValue": true
+    },
+    "extensions": {
+        "recommendations": [
+            "amiralizadeh9480.laravel-extra-intellisense",
+            "bmewburn.vscode-intelephense-client",
+            "bradlc.vscode-tailwindcss",
+            "christian-kohler.path-intellisense",
+            "donjayamanne.githistory",
+            "editorconfig.editorconfig",
+            "esbenp.prettier-vscode",
+            "meysinaliautoclose.autoclose",
+            "mikestead.dotenv",
+            "onecentlin.laravel-blade",
+            "shufo.vscode-blade-formatter",
+            "vue.volar",
+            "unifiedjs.vscode-mdx"
+        ]
+    }
+}

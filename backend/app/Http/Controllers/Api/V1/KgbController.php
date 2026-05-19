@@ -9,8 +9,8 @@ use App\Http\Requests\Kgb\ApproveKgbRequest;
 use App\Http\Requests\Kgb\RejectKgbRequest;
 use App\Http\Requests\Kgb\StoreKgbRequest;
 use App\Http\Requests\Kgb\VerifyKgbRequest;
+use App\Models\RiwayatKgb;
 use App\Services\Kgb\KgbService;
-use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -114,7 +114,7 @@ class KgbController extends Controller
     /**
      * Format a RiwayatKgb model into a consistent array.
      */
-    private function formatKgb($kgb): array
+    private function formatKgb(RiwayatKgb $kgb): array
     {
         return [
             'id' => $kgb->id,

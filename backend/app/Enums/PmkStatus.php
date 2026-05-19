@@ -16,4 +16,14 @@ enum PmkStatus: string
             self::NONAKTIF => 'Nonaktif',
         };
     }
+
+    public function isEditable(): bool
+    {
+        return $this === self::DRAFT;
+    }
+
+    public function isDeletable(): bool
+    {
+        return $this === self::DRAFT;
+    }
 }

@@ -6,7 +6,7 @@ enum KgbStatus: string
 {
     case DRAFT = 'draft';
     case DIAJUKAN = 'diajukan';
-    case DIVERIFIKASI = 'divverifikasi';
+    case DIVERIFIKASI = 'diverifikasi';
     case DISETUJUI = 'disetujui';
     case DITOLAK = 'ditolak';
 
@@ -23,6 +23,9 @@ enum KgbStatus: string
 
     public function canTransitionTo(self $next): bool
     {
+        if ($this === $next) {
+            return false;
+        }
         return match($this) {
             self::DRAFT => $next === self::DIAJUKAN || $next === self::DITOLAK,
             self::DIAJUKAN => $next === self::DIVERIFIKASI || $next === self::DITOLAK,

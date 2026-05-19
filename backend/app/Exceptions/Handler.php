@@ -7,6 +7,7 @@ use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
+use App\Helpers\ApiResponse;
 
 class Handler extends ExceptionHandler
 {
@@ -37,7 +38,7 @@ class Handler extends ExceptionHandler
 
         $this->renderable(function (NotFoundHttpException $e) {
             return ApiResponse::error(
-                code: 'RESOURCE_NOT_FOUND',
+                code: ApiErrorCode::KGB_NOT_FOUND->value,
                 message: 'Resource tidak ditemukan',
                 httpStatus: 404
             );

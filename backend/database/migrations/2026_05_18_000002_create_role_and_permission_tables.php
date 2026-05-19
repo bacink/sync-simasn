@@ -33,6 +33,7 @@ return new class extends Migration
             $table->primary(['role_id', 'model_id', 'model_type']);
 
             $table->foreign('role_id')->references('id')->on('roles')->onDelete('cascade');
+            $table->index('model_id');
         });
 
         Schema::create('role_has_permissions', function (Blueprint $table) {

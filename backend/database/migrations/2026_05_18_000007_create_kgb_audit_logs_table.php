@@ -28,6 +28,7 @@ return new class extends Migration
 
             $table->index(['module', 'target_id']);
             $table->index(['user_id', 'created_at']);
+            $table->index(['target_type', 'target_id']);
         });
     }
 

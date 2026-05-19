@@ -20,8 +20,8 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
 
-            $table->unique(['golongan', 'masa_kerja_tahun', 'is_active']);
-            $table->index(['golongan', 'masa_kerja_tahun']);
+            $table->unique(['golongan', 'masa_kerja_tahun']);
+            $table->index(['golongan', 'masa_kerja_tahun', 'is_active']);
         });
     }
 

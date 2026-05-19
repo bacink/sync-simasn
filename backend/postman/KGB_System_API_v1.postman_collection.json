@@ -1,0 +1,693 @@
+{
+  "info": {
+    "name": "KGB System API v1",
+    "description": "API Collection untuk Sistem KGB & PMK ASN - Backend Laravel 13",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Response success', jsonData.success === true);",
+                  "pm.test('Has user data', jsonData.data && jsonData.data.user);",
+                  "if (jsonData.data && jsonData.data.token) {",
+                  "    pm.collectionVariables.set('token', jsonData.data.token);",
+                  "    pm.test('Token saved', true);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@bpsdm.id\",\n  \"password\": \"password\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Current User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Response success', jsonData.success === true);",
+                  "pm.test('Has user info', jsonData.data && jsonData.data.name);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "KGB",
+      "item": [
+        {
+          "name": "List KGB",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Response success', jsonData.success === true);",
+                  "pm.test('Has data array', Array.isArray(jsonData.data));",
+                  "pm.test('Has pagination', jsonData.meta && jsonData.meta.pagination);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/kgb?page=1&per_page=20&sort=created_at&dir=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["kgb"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "per_page", "value": "20"},
+                {"key": "sort", "value": "created_at"},
+                {"key": "dir", "value": "desc"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Generate KGB Draft",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Response success', jsonData.success === true);",
+                  "pm.test('Status is draft', jsonData.data.status === 'draft');",
+                  "pm.test('Has gaji values', jsonData.data.gaji_lama > 0 && jsonData.data.gaji_baru > 0);",
+                  "pm.test('Has TMT', jsonData.data.tmt_kgb_baru);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pegawai_id\": 1,\n  \"pmk_id\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/kgb/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["kgb", "generate"]
+            }
+          }
+        },
+        {
+          "name": "Get KGB Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/kgb/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["kgb", "1"]
+            }
+          }
+        },
+        {
+          "name": "Update KGB",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Updated notes\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/kgb/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["kgb", "1"]
+            }
+          }
+        },
+        {
+          "name": "Delete KGB",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/kgb/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["kgb", "1"]
+            }
+          }
+        },
+        {
+          "name": "Submit KGB",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Response success', jsonData.success === true);",
+                  "pm.test('Status is diajukan', jsonData.data.status === 'diajukan');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Diajukan untuk verifikasi\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/kgb/1/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["kgb", "1", "submit"]
+            }
+          }
+        },
+        {
+          "name": "Verify KGB (Approve)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Response success', jsonData.success === true);",
+                  "pm.test('Status updated', ['divverifikasi', 'ditolak'].includes(jsonData.data.status));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"approve\",\n  \"notes\": \"Data sudah sesuai\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/kgb/1/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["kgb", "1", "verify"]
+            }
+          }
+        },
+        {
+          "name": "Verify KGB (Reject)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"reject\",\n  \"notes\": \"Data belum lengkap\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/kgb/1/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["kgb", "1", "verify"]
+            }
+          }
+        },
+        {
+          "name": "Approve KGB",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Response success', jsonData.success === true);",
+                  "pm.test('Status is disetujui', jsonData.data.status === 'disetujui');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Disetujui\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/kgb/1/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["kgb", "1", "approve"]
+            }
+          }
+        },
+        {
+          "name": "Reject KGB",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Data tidak valid, perlu diperbaiki terlebih dahulu\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/kgb/1/reject",
+              "host": ["{{baseUrl}}"],
+              "path": ["kgb", "1", "reject"]
+            }
+          }
+        },
+        {
+          "name": "Get KGB Snapshot",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/kgb/1/snapshot",
+              "host": ["{{baseUrl}}"],
+              "path": ["kgb", "1", "snapshot"]
+            }
+          }
+        },
+        {
+          "name": "Get KGB Document",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/kgb/1/document",
+              "host": ["{{baseUrl}}"],
+              "path": ["kgb", "1", "document"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PMK",
+      "item": [
+        {
+          "name": "List PMK",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pmk?page=1&per_page=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["pmk"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "per_page", "value": "20"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create PMK",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Response success', jsonData.success === true);",
+                  "pm.test('Has PMK data', jsonData.data && jsonData.data.no_sk);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pegawai_id\": 1,\n  \"no_sk\": \"821.3/005/2026\",\n  \"tanggal_sk\": \"2026-01-15\",\n  \"masa_kerja_lama_tahun\": 14,\n  \"masa_kerja_lama_bulan\": 0,\n  \"masa_kerja_baru_tahun\": 16,\n  \"masa_kerja_baru_bulan\": 3,\n  \"keterangan\": \"PMK karena kenaikan pangkat\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pmk",
+              "host": ["{{baseUrl}}"],
+              "path": ["pmk"]
+            }
+          }
+        },
+        {
+          "name": "Get PMK Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pmk/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["pmk", "1"]
+            }
+          }
+        },
+        {
+          "name": "Update PMK",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"keterangan\": \"Updated: PMK revisi\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pmk/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["pmk", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "SIM-ASN Proxy",
+      "item": [
+        {
+          "name": "List Pegawai",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sim-asn/pegawai?page=1&per_page=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["sim-asn", "pegawai"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "per_page", "value": "20"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Pegawai Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sim-asn/pegawai/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["sim-asn", "pegawai", "1"]
+            }
+          }
+        },
+        {
+          "name": "Get Riwayat Golongan",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sim-asn/pegawai/1/golongan",
+              "host": ["{{baseUrl}}"],
+              "path": ["sim-asn", "pegawai", "1", "golongan"]
+            }
+          }
+        },
+        {
+          "name": "Get Riwayat Jabatan",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sim-asn/pegawai/1/jabatan",
+              "host": ["{{baseUrl}}"],
+              "path": ["sim-asn", "pegawai", "1", "jabatan"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reference Data",
+      "item": [
+        {
+          "name": "List Referensi Gaji",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Response success', jsonData.success === true);",
+                  "pm.test('Has pagination', jsonData.meta && jsonData.meta.pagination);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ref/gaji?page=1&per_page=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["ref", "gaji"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "per_page", "value": "50"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Referensi Gaji",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"golongan\": \"IV/c\",\n  \"masa_kerja_tahun\": 20,\n  \"gaji\": 6578231,\n  \"peraturan\": \"PP No. 5 Tahun 2024\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ref/gaji",
+              "host": ["{{baseUrl}}"],
+              "path": ["ref", "gaji"]
+            }
+          }
+        },
+        {
+          "name": "Get Referensi Gaji Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ref/gaji/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["ref", "gaji", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard Stats",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Response success', jsonData.success === true);",
+                  "pm.test('Has stats', jsonData.data && jsonData.data.total_kgb !== undefined);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Get Pending KGB",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/pending",
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard", "pending"]
+            }
+          }
+        },
+        {
+          "name": "Get Upcoming KGB",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/upcoming",
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard", "upcoming"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Error Responses",
+      "item": [
+        {
+          "name": "401 - Invalid Credentials",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', pm.response.code === 401);",
+                  "pm.test('Error code AUTH_INVALID_CREDENTIALS', pm.response.json().error.code === 'AUTH_INVALID_CREDENTIALS');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"wrong@bpsdm.id\",\n  \"password\": \"wrongpass\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "404 - KGB Not Found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', pm.response.code === 404);",
+                  "pm.test('Error code KGB_NOT_FOUND', pm.response.json().error.code === 'KGB_NOT_FOUND');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/kgb/999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["kgb", "999999"]
+            }
+          }
+        },
+        {
+          "name": "422 - Validation Error",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422', pm.response.code === 422);",
+                  "pm.test('Error code VALIDATION_ERROR', pm.response.json().error.code === 'VALIDATION_ERROR');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pegawai_id\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/kgb/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["kgb", "generate"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

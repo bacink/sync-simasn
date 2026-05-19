@@ -21,7 +21,10 @@ class ApiError extends Exception
 
     public static function notFound(string $code, string $message, array $details = []): static
     {
-        $errorCode = ApiErrorCode::tryFrom($code) ?? ApiErrorCode::KGB_NOT_FOUND;
+        $errorCode = ApiErrorCode::tryFrom($code);
+        if (!$errorCode) {
+            throw new \InvalidArgumentException("Unknown error code: {$code}");
+        }
         return new static($errorCode, $details, $message, 404);
     }
 

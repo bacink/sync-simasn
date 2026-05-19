@@ -7,6 +7,7 @@ use App\Exceptions\ApiError;
 use App\Exceptions\ApiErrorCode;
 use App\Models\Opd;
 use App\Models\RiwayatKgb;
+use App\Services\Pmk\PmkService;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,7 @@ class KgbService
 {
     public function __construct(
         private readonly SimAsnService $simAsnService,
+        private readonly PmkService $pmkService,
         private readonly KgbCalculationService $calculationService,
         private readonly KgbSnapshotService $snapshotService,
         private readonly KgbDocumentService $documentService,
@@ -82,7 +84,7 @@ class KgbService
             $masaKerjaBulan = $golongan['masa_kerja_bulan'] ?? 0;
 
             if ($pmkId) {
-                $pmk = \App\Models\RiwayatPmk::find($pmkId);
+                $pmk = $this->pmkService->find($pmkId);
                 if ($pmk) {
                     $masaKerjaTahun = $pmk->masa_kerja_baru_tahun ?? $masaKerjaTahun;
                     $masaKerjaBulan = $pmk->masa_kerja_baru_bulan ?? $masaKerjaBulan;
@@ -172,7 +174,7 @@ class KgbService
 
         $this->auditService->logKgb('UPDATED', $kgb, $oldData);
 
-        return $kgb->fresh(['opd', 'snapshot', 'pmk', 'refGaji']);
+        return $kgb;
     }
 
     /**
@@ -212,7 +214,7 @@ class KgbService
 
         $this->auditService->logKgb('SUBMITTED', $kgb, null, $notes ?? 'KGB diajukan');
 
-        return $kgb->fresh(['opd', 'snapshot', 'pmk', 'refGaji']);
+        return $kgb;
     }
 
     /**
@@ -242,7 +244,7 @@ class KgbService
             throw ApiError::invalidTransition("Action verifikasi tidak valid: {$action}");
         }
 
-        return $kgb->fresh(['opd', 'snapshot', 'pmk', 'refGaji']);
+        return $kgb;
     }
 
     /**
@@ -263,7 +265,7 @@ class KgbService
 
         $this->auditService->logKgb('APPROVED', $kgb, null, $notes ?? 'KGB disetujui');
 
-        return $kgb->fresh(['opd', 'snapshot', 'pmk', 'refGaji']);
+        return $kgb;
     }
 
     /**
@@ -284,7 +286,7 @@ class KgbService
 
         $this->auditService->logKgb('REJECTED', $kgb, null, $reason);
 
-        return $kgb->fresh(['opd', 'snapshot', 'pmk', 'refGaji']);
+        return $kgb;
     }
 
     /**

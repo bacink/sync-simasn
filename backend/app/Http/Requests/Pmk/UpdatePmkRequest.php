@@ -9,7 +9,7 @@ class UpdatePmkRequest extends FormRequest
     public function authorize(): bool
     {
         $pmk = $this->route('pmk');
-        return $pmk && $this->user()->can('pmk edit');
+        return $pmk && $pmk->status->value === 'draft' && $this->user()->can('pmk edit');
     }
 
     public function rules(): array

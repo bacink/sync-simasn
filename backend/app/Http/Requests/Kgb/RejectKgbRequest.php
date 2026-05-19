@@ -8,7 +8,7 @@ class RejectKgbRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('kgb approve');
+        return $this->user()->can('kgb verify');
     }
 
     public function rules(): array

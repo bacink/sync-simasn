@@ -14,7 +14,7 @@ class UpdateRefGajiRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'golongan'          => ['sometimes', 'regex:/^(IV|X)/i'],
+            'golongan'          => ['sometimes', 'string', 'max:10', 'regex:/^[IV]{1,4}\/[a-d]$/i'],
             'masa_kerja_tahun' => ['sometimes', 'integer'],
             'gaji'              => ['sometimes', 'numeric'],
         ];

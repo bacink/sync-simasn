@@ -14,7 +14,7 @@ class StoreRefGajiRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'golongan'          => ['required', 'regex:/^(IV|X)/i'],
+            'golongan'          => ['required', 'string', 'max:10', 'regex:/^[IV]{1,4}\/[a-d]$/i'],
             'masa_kerja_tahun' => ['required', 'integer'],
             'gaji'              => ['required', 'numeric'],
         ];

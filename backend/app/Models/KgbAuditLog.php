@@ -37,7 +37,6 @@ class KgbAuditLog extends Model
         'ip_address',
         'user_agent',
         'reason',
-        'created_at',
     ];
 
     /**

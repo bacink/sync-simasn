@@ -63,4 +63,14 @@ class RiwayatPmk extends Model
     {
         return $this->belongsTo(Opd::class);
     }
+
+    public function isEditable(): bool
+    {
+        return $this->status->isEditable();
+    }
+
+    public function isDeletable(): bool
+    {
+        return $this->status->isDeletable();
+    }
 }

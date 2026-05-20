@@ -14,14 +14,14 @@ readonly class ArchiveNamingMapper
      * Placeholders: {NIP}, {KEY}, {LEVEL}, {SEQ}, {CODE}, {TRAINING_NAME}, {CONDITION_TYPE}
      */
     private const MAP = [
-        'education'   => ['pattern' => '{NIP}_IJAZAH_{LEVEL}.pdf'],
-        'golongan'    => ['pattern' => '{NIP}_SKKP_{SEQ}.pdf'],
-        'jabatan'     => ['pattern' => '{NIP}_SKJABATAN_{SEQ}.pdf'],
-        'training'    => ['pattern' => '{NIP}_SK_DIKLAT_{TRAINING_NAME}.pdf'],
+        'education' => ['pattern' => '{NIP}_IJAZAH_{LEVEL}.pdf'],
+        'golongan' => ['pattern' => '{NIP}_SKKP_{SEQ}.pdf'],
+        'jabatan' => ['pattern' => '{NIP}_SKJABATAN_{SEQ}.pdf'],
+        'training' => ['pattern' => '{NIP}_SK_DIKLAT_{TRAINING_NAME}.pdf'],
         'sertifikasi' => ['pattern' => '{NIP}_SK_SERTIFIKASI_{TRAINING_NAME}.pdf'],
-        'skp'         => ['pattern' => '{NIP}_SKP_{YEAR}.pdf'],
-        'akta'        => ['pattern' => '{NIP}_AKTA_{CONDITION_TYPE}.pdf'],
-        'berkas'      => ['pattern' => '{NIP}_{KEY}_{CONDITION_TYPE}.pdf'],
+        'skp' => ['pattern' => '{NIP}_SKP_{YEAR}.pdf'],
+        'akta' => ['pattern' => '{NIP}_AKTA_{CONDITION_TYPE}.pdf'],
+        'berkas' => ['pattern' => '{NIP}_{KEY}_{CONDITION_TYPE}.pdf'],
     ];
 
     /**
@@ -30,39 +30,39 @@ readonly class ArchiveNamingMapper
      */
     private const JENIS_MAP = [
         // Education (Ijazah)
-        'ijazah'      => 'education',
+        'ijazah' => 'education',
 
         // Golongan (Rank/Salary Grade)
         'sk_golongan' => 'golongan',
 
         // Jabatan (Position)
-        'sk_jabatan'  => 'jabatan',
+        'sk_jabatan' => 'jabatan',
 
         // Training / Diklat
-        'sk_diklat'   => 'training',
+        'sk_diklat' => 'training',
 
         // Sertifikasi
         'sk_sertifikasi' => 'sertifikasi',
 
         // SKP (Performance Target)
-        'skp'         => 'skp',
+        'skp' => 'skp',
 
         // Civil documents (Akta, Buku Nikah, etc.)
-        'akta_kelahiran'  => 'akta',
-        'akta_kematian'   => 'akta',
-        'akta_cerai'       => 'akta',
-        'akta_nikah'       => 'akta',
-        'buku_nikah'      => 'akta',
+        'akta_kelahiran' => 'akta',
+        'akta_kematian' => 'akta',
+        'akta_cerai' => 'akta',
+        'akta_nikah' => 'akta',
+        'buku_nikah' => 'akta',
 
         // Other Berkas (fallback for everything else)
-        'surat_dokter'        => 'berkas',
-        'sk_sttpl'           => 'berkas',
-        'sk_spmt'           => 'berkas',
+        'surat_dokter' => 'berkas',
+        'sk_sttpl' => 'berkas',
+        'sk_spmt' => 'berkas',
         'sk_rekomendasi_inovasi' => 'berkas',
-        'berita_acara'       => 'berkas',
-        'pelantikan'         => 'berkas',
-        'kk'                => 'berkas',
-        'ktp'               => 'berkas',
+        'berita_acara' => 'berkas',
+        'pelantikan' => 'berkas',
+        'kk' => 'berkas',
+        'ktp' => 'berkas',
     ];
 
     /**
@@ -90,10 +90,10 @@ readonly class ArchiveNamingMapper
         if (preg_match('/(\d{4})/', $label, $m)) {
             return $m[1];
         }
+
         return date('Y');
     }
 
-    
     /**
      * Normalize education level from ijazah label.
      * Handles typos, synonyms, and full names from SIM-ASN.
@@ -151,6 +151,7 @@ readonly class ArchiveNamingMapper
                 }
             }
         }
+
         // Fallback: slugify if no pattern matched
         return self::slugify($label);
     }
@@ -164,15 +165,19 @@ readonly class ArchiveNamingMapper
      *   "SK Golongan III/a" → "31"
      *   "SK Golongan III/b" → "32"
      */
+    /**
+     * Maps golongan keys to their roman-numeral display form.
+     * Format: {ROMAN_NUMERAL}{LETTER}  e.g.  i/a → IA,  ii/b → IIB
+     */
     private const GOLONGAN_SEQ_MAP = [
         // Golongan I (Juru)
-        'i/a'  => '11', 'i/b'  => '12', 'i/c'  => '13', 'i/d'  => '14',
+        'i/a' => 'IA',  'i/b' => 'IB',  'i/c' => 'IC',  'i/d' => 'ID',
         // Golongan II (Pengatur)
-        'ii/a' => '21', 'ii/b' => '22', 'ii/c' => '23', 'ii/d' => '24',
+        'ii/a' => 'IIA', 'ii/b' => 'IIB', 'ii/c' => 'IIC', 'ii/d' => 'IID',
         // Golongan III (Penata)
-        'iii/a' => '31', 'iii/b' => '32', 'iii/c' => '33', 'iii/d' => '34',
+        'iii/a' => 'IIIA', 'iii/b' => 'IIIB', 'iii/c' => 'IIIC', 'iii/d' => 'IIID',
         // Golongan IV (Pembina)
-        'iv/a' => '41', 'iv/b' => '42', 'iv/c' => '43', 'iv/d' => '44', 'iv/e' => '45',
+        'iv/a' => 'IVA', 'iv/b' => 'IVB', 'iv/c' => 'IVC', 'iv/d' => 'IVD', 'iv/e' => 'IVE',
     ];
 
     /**
@@ -199,7 +204,7 @@ readonly class ArchiveNamingMapper
             if (isset($romanMap[$roman])) {
                 $letterMap = ['a' => '1', 'b' => '2', 'c' => '3', 'd' => '4', 'e' => '5'];
                 if (isset($letterMap[$letter])) {
-                    return $romanMap[$roman] . $letterMap[$letter];
+                    return $romanMap[$roman].$letterMap[$letter];
                 }
             }
         }
@@ -213,7 +218,8 @@ readonly class ArchiveNamingMapper
     public static function extractConditionType(string $jenis, string $label): string
     {
         // Remove the jenis prefix from label if it starts with it
-        $cleaned = preg_replace('/^' . preg_quote($jenis, '/') . '\s+/i', '', $label);
+        $cleaned = preg_replace('/^'.preg_quote($jenis, '/').'\s+/i', '', $label);
+
         // e.g., "akta_kelahiran Alifia Zahrotushita" → "Alifia_Zahrotushita"
         return self::slugify(trim($cleaned ?: $label));
     }
@@ -221,30 +227,30 @@ readonly class ArchiveNamingMapper
     /**
      * Generate the archive filename.
      *
-     * @param string $nip      Employee NIP
-     * @param string $jenis    Document jenis from SIM-ASN (e.g. 'ijazah', 'sk_golongan')
-     * @param string $label     Document label (e.g. 'Ijazah Sekolah Dasar')
-     * @param array  $meta     Additional metadata overrides
-     * @return string          Formatted filename (e.g. '198501012001121001_IJAZAH_SD.pdf')
+     * @param  string  $nip  Employee NIP
+     * @param  string  $jenis  Document jenis from SIM-ASN (e.g. 'ijazah', 'sk_golongan')
+     * @param  string  $label  Document label (e.g. 'Ijazah Sekolah Dasar')
+     * @param  array  $meta  Additional metadata overrides
+     * @return string Formatted filename (e.g. '198501012001121001_IJAZAH_SD.pdf')
      */
     public static function generate(string $nip, string $jenis, string $label, array $meta = []): string
     {
         $category = self::getCategory($jenis);
-        $pattern  = self::getPattern($category);
+        $pattern = self::getPattern($category);
 
         $replacements = [
-            '{NIP}'            => $nip,
-            '{KEY}'            => $jenis,
-            '{LEVEL}'          => $meta['level']          ?? self::extractLevel($label),
-            '{SEQ}'            => $meta['sequence']       ?? self::extractSeq($label),
-            '{CODE}'           => $meta['code']           ?? self::extractSeq($label),
-            '{TRAINING_NAME}'  => ($meta['training_name'] ?? null)
+            '{NIP}' => $nip,
+            '{KEY}' => $jenis,
+            '{LEVEL}' => $meta['level'] ?? self::extractLevel($label),
+            '{SEQ}' => $meta['sequence'] ?? self::extractSeq($label),
+            '{CODE}' => $meta['code'] ?? self::extractSeq($label),
+            '{TRAINING_NAME}' => ($meta['training_name'] ?? null)
                                     ? self::slugify($meta['training_name'])
                                     : self::slugify($label),
             '{CONDITION_TYPE}' => ($meta['condition_type'] ?? null)
                                     ? $meta['condition_type']
                                     : self::extractConditionType($jenis, $label),
-            '{YEAR}'           => $meta['year']           ?? self::extractYear($label),
+            '{YEAR}' => $meta['year'] ?? self::extractYear($label),
         ];
 
         $filename = str_replace(array_keys($replacements), array_values($replacements), $pattern);

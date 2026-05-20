@@ -3,87 +3,77 @@
 namespace App\Models;
 
 use App\Enums\KgbStatus;
-use App\Enums\KgbType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class RiwayatKgb extends Model
 {
-    /** @use HasFactory<\Database\Factories\RiwayatKgbFactory> */
     use HasFactory, SoftDeletes;
 
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
     protected $table = 'riwayat_kgb';
 
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var list<string>
+     */
     protected $fillable = [
+        'user_id',
         'pegawai_id',
-        'golongan_id',
-        'peraturan_id',
+        'pegawai_nama',
+        'pegawai_nip',
+        'opd_id',
+        'status',
+        'golongan',
         'masa_kerja_tahun',
         'masa_kerja_bulan',
         'gaji_lama',
         'gaji_baru',
-        'tmt_kgb',
-        'nomor_sk',
-        'tanggal_sk',
-        'jenis_kgb',
-        'status',
+        'tmt_kgb_lama',
+        'tmt_kgb_baru',
         'pmk_id',
+        'ref_gaji_id',
+        'file_sk_id',
+        'notes',
     ];
 
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
     protected function casts(): array
     {
         return [
-            'tmt_kgb' => 'date',
-            'tanggal_sk' => 'date',
-            'jenis_kgb' => KgbType::class,
             'status' => KgbStatus::class,
-            'masa_kerja_tahun' => 'integer',
-            'masa_kerja_bulan' => 'integer',
-            'gaji_lama' => 'decimal:2',
-            'gaji_baru' => 'decimal:2',
+            'gaji_lama' => 'decimal:0',
+            'gaji_baru' => 'decimal:0',
+            'tmt_kgb_lama' => 'date',
+            'tmt_kgb_baru' => 'date',
         ];
     }
 
-    // ─── Relations ────────────────────────────────────────────
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 
-    /** Single source of truth for employee data at creation time */
+    public function opd(): BelongsTo
+    {
+        return $this->belongsTo(Opd::class);
+    }
+
     public function snapshot(): HasOne
     {
-        return $this->hasOne(KgbSnapshot::class, 'riwayat_kgb_id');
-    }
-
-    /** Salary calculation result */
-    public function calculation(): HasOne
-    {
-        return $this->hasOne(KgbCalculation::class, 'riwayat_kgb_id');
-    }
-
-    /** Approval workflow history */
-    public function approvals(): HasMany
-    {
-        return $this->hasMany(KgbApproval::class, 'riwayat_kgb_id');
-    }
-
-    /** Polymorphic: multiple files (SK, lampiran, etc.) */
-    public function files(): MorphMany
-    {
-        return $this->morphMany(Fileable::class, 'fileable')
-            ->orderBy('kategori');
-    }
-
-    public function golongan(): BelongsTo
-    {
-        return $this->belongsTo(RefGolongan::class, 'golongan_id');
-    }
-
-    public function peraturan(): BelongsTo
-    {
-        return $this->belongsTo(RefPeraturan::class, 'peraturan_id');
+        return $this->hasOne(KgbSnapshot::class);
     }
 
     public function pmk(): BelongsTo
@@ -91,20 +81,64 @@ class RiwayatKgb extends Model
         return $this->belongsTo(RiwayatPmk::class, 'pmk_id');
     }
 
-    public function refStatus(): BelongsTo
+    public function refGaji(): BelongsTo
     {
-        return $this->belongsTo(RefStatusKgb::class, 'status', 'kode');
+        return $this->belongsTo(RefGajiAsn::class, 'ref_gaji_id');
     }
 
-    // ─── Helpers ─────────────────────────────────────────────
+    /**
+     * Check if the current status can transition to the given status.
+     */
+    public function canTransitionTo(KgbStatus $nextStatus): bool
+    {
+        return $this->status->canTransitionTo($nextStatus);
+    }
 
+    /**
+     * Check if the KGB record is editable.
+     */
     public function isEditable(): bool
     {
-        return $this->status === KgbStatus::Draft;
+        return $this->status->isEditable();
     }
 
-    public function getGajiNaikAttribute(): float
+    // ─── Query Scopes ───────────────────────────────────────────
+
+    public function scopeByStatus($query, ?string $status): void
     {
-        return max(0, (float) $this->gaji_baru - (float) $this->gaji_lama);
+        if ($status) {
+            $query->where('status', $status);
+        }
+    }
+
+    public function scopeByOpd($query, ?int $opdId): void
+    {
+        if ($opdId) {
+            $query->where('opd_id', $opdId);
+        }
+    }
+
+    public function scopeByPegawai($query, ?int $pegawaiId): void
+    {
+        if ($pegawaiId) {
+            $query->where('pegawai_id', $pegawaiId);
+        }
+    }
+
+    public function scopeByTahun($query, ?int $tahun): void
+    {
+        if ($tahun) {
+            $query->whereYear('tmt_kgb_baru', $tahun);
+        }
+    }
+
+    public function scopeSearch($query, ?string $search): void
+    {
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('pegawai_nama', 'like', "%{$search}%")
+                  ->orWhere('pegawai_nip', 'like', "%{$search}%");
+            });
+        }
     }
 }

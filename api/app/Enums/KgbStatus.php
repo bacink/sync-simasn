@@ -4,12 +4,50 @@ namespace App\Enums;
 
 /**
  * Enum representing the workflow status of a KGB record.
+ * Values are stored as lowercase strings in the database ('draft', 'diajukan', etc.)
  */
 enum KgbStatus: string
 {
-    case Draft = 'draft';
-    case Diajukan = 'diajukan';
-    case Diverifikasi = 'diverifikasi';
-    case Disetujui = 'disetujui';
-    case Ditolak = 'ditolak';
+    case DRAFT = 'draft';
+    case DIAJUKAN = 'diajukan';
+    case DIVERIFIKASI = 'diverifikasi';
+    case DISETUJUI = 'disetujui';
+    case DITOLAK = 'ditolak';
+
+    public function label(): string
+    {
+        return match($this) {
+            self::DRAFT => 'Draft',
+            self::DIAJUKAN => 'Diajukan',
+            self::DIVERIFIKASI => 'Diverifikasi',
+            self::DISETUJUI => 'Disetujui',
+            self::DITOLAK => 'Ditolak',
+        };
+    }
+
+    /**
+     * Check if transition from current status to $next is valid.
+     */
+    public function canTransitionTo(self $next): bool
+    {
+        if ($this === $next) {
+            return false;
+        }
+        return match($this) {
+            self::DRAFT => $next === self::DIAJUKAN || $next === self::DITOLAK,
+            self::DIAJUKAN => $next === self::DIVERIFIKASI || $next === self::DITOLAK,
+            self::DIVERIFIKASI => $next === self::DISETUJUI || $next === self::DITOLAK,
+            self::DISETUJUI, self::DITOLAK => false,
+        };
+    }
+
+    public function isEditable(): bool
+    {
+        return $this === self::DRAFT;
+    }
+
+    public function isDeletable(): bool
+    {
+        return $this === self::DRAFT;
+    }
 }

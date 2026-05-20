@@ -5,12 +5,11 @@ return [
     |--------------------------------------------------------------------------
     | SIM-ASN API Configuration
     |--------------------------------------------------------------------------
-    |
-    | This configuration defines the connection settings for the SIM-ASN
-    | service provided by BKPSDM Karawang. It uses the default keys
-    | expected by the bkpsdm-karawang/sim-asn-php-client package.
-    |
     */
+    'base_url'  => env('SIM_ASN_URL', 'https://api.sim-asn.bkpsdm.karawangkab.go.id'),
+    'api_key'   => env('SIM_ASN_API_KEY'),
+    'timeout'   => env('SIM_ASN_TIMEOUT', 30),
+    'retry'     => env('SIMASN_RETRY', 3),
 
     'url'          => env('SIM_ASN_URL', 'https://api.sim-asn.bkpsdm.karawangkab.go.id'),
     'frontend_url' => env('SIM_ASN_FRONTEND_URL', 'https://sim-asn.bkpsdm.karawangkab.go.id'),

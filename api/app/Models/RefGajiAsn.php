@@ -2,70 +2,63 @@
 
 namespace App\Models;
 
-use App\Enums\JenisAsn;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/**
- * Immutable salary reference table.
- *
- * Rows must NEVER be updated — insert new rows for new regulations.
- * The unique constraint (jenis_asn, golongan, sub_golongan, masa_kerja, peraturan_id)
- * guarantees no duplicates per regulation version.
- */
 class RefGajiAsn extends Model
 {
     use HasFactory;
 
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
     protected $table = 'ref_gaji_asn';
 
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var list<string>
+     */
     protected $fillable = [
-        'jenis_asn',
-        'peraturan_id',
         'golongan',
-        'sub_golongan',
-        'masa_kerja',
+        'masa_kerja_tahun',
         'gaji',
+        'peraturan',
+        'is_active',
     ];
 
-    protected $hidden = [
-        // No updates allowed — prevent accidental writes
-    ];
-
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
     protected function casts(): array
     {
         return [
-            'jenis_asn' => JenisAsn::class,
-            'masa_kerja' => 'integer',
-            'gaji' => 'decimal:2',
+            'gaji' => 'decimal:0',
+            'is_active' => 'boolean',
         ];
     }
 
     /**
-     * Immutability guard: throw if anyone attempts to update a row.
-     * Salary reference data is versioned — never modified in place.
+     * Scope a query to only include active records.
      */
-    public function save(array $options = []): bool
+    public function scopeActive(Builder $query): Builder
     {
-        if ($this->exists) {
-            throw new \RuntimeException(
-                'ref_gaji_asn is immutable. Insert a new row for new regulation versions.'
-            );
-        }
-
-        return parent::save($options);
+        return $query->where('is_active', true);
     }
 
-    public function delete(): ?bool
+    /**
+     * Find a record by golongan and masa kerja tahun.
+     */
+    public static function findByGolonganAndMasaKerja(string $golongan, int $masaKerjaTahun): ?self
     {
-        throw new \RuntimeException(
-            'ref_gaji_asn rows must not be deleted. Historical salary data depends on them.'
-        );
-    }
-
-    public function peraturan(): BelongsTo
-    {
-        return $this->belongsTo(RefPeraturan::class, 'peraturan_id');
+        return static::active()
+            ->where('golongan', $golongan)
+            ->where('masa_kerja_tahun', $masaKerjaTahun)
+            ->first();
     }
 }

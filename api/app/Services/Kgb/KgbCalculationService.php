@@ -2,51 +2,44 @@
 
 namespace App\Services\Kgb;
 
-use App\Enums\JenisAsn;
+use App\Exceptions\ApiError;
 use App\Models\RefGajiAsn;
-use App\Models\RefPeraturan;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 
-/**
- * Service responsible for pure salary calculation logic.
- * This service is stateless and acts as a lookup engine for the salary reference table.
- */
 class KgbCalculationService
 {
-    /**
-     * Look up the salary based on ASN type, grade, and years of service.
-     *
-     * @param string|JenisAsn $jenisAsn The type of ASN ('pns' or 'pppk').
-     * @param string $golongan The grade/rank (e.g., 'III').
-     * @param int $masaKerja The years of work period (0-32).
-     * @param string|null $subGolongan The sub-grade (e.g., 'a').
-     * @param int|null $peraturanId The specific regulation ID. If null, the latest regulation will be used.
-     * @return RefGajiAsn
-     *
-     * @throws ModelNotFoundException
-     */
-    public function calculate(
-        string|JenisAsn $jenisAsn,
-        string $golongan,
-        int $masaKerja,
-        ?string $subGolongan = null,
-        ?int $peraturanId = null
-    ): RefGajiAsn {
-        $jenisAsnValue = $jenisAsn instanceof JenisAsn ? $jenisAsn->value : $jenisAsn;
+    public function lookupGaji(string $golongan, int $masaKerjaTahun): ?RefGajiAsn
+    {
+        return RefGajiAsn::findByGolonganAndMasaKerja($golongan, $masaKerjaTahun);
+    }
 
-        if (!$peraturanId) {
-            $peraturanId = RefPeraturan::query()
-                ->orderByDesc('tahun')
-                ->orderByDesc('id')
-                ->value('id');
+    public function calculateGajiBaru(string $golongan, int $masaKerjaTahun, ?int $masaKerjaBulan = 0): array
+    {
+        $masaKerjaTotalBulan = ($masaKerjaTahun * 12) + $masaKerjaBulan;
+        $masaKerjaBaruBulan = $masaKerjaTotalBulan + 24;
+
+        $masaKerjaBaruTahun = intdiv($masaKerjaBaruBulan, 12);
+        $sisaBulan = $masaKerjaBaruBulan % 12;
+
+        $gajiRef = $this->lookupGaji($golongan, $masaKerjaBaruTahun);
+
+        if (!$gajiRef) {
+            throw ApiError::refGajiNotFound($golongan, $masaKerjaBaruTahun);
         }
 
-        return RefGajiAsn::query()
-            ->where('peraturan_id', $peraturanId)
-            ->where('jenis_asn', $jenisAsnValue)
-            ->where('golongan', $golongan)
-            ->when($subGolongan, fn($q) => $q->where('sub_golongan', $subGolongan))
-            ->where('masa_kerja', $masaKerja)
-            ->firstOrFail();
+        return [
+            'masa_kerja_tahun' => $masaKerjaBaruTahun,
+            'masa_kerja_bulan' => $sisaBulan,
+            'gaji' => (int) $gajiRef->gaji,
+        ];
+    }
+
+    public function calculateTmtBaru(\DateTimeInterface $tmtLama): string
+    {
+        return $tmtLama->modify('+2 years')->format('Y-m-d');
+    }
+
+    public function formatMasaKerja(int $tahun, int $bulan): string
+    {
+        return "{$tahun} tahun {$bulan} bulan";
     }
 }

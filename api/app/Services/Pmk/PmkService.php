@@ -2,141 +2,134 @@
 
 namespace App\Services\Pmk;
 
-use App\Models\File;
+use App\Enums\PmkStatus;
+use App\Exceptions\ApiError;
 use App\Models\RiwayatPmk;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
-/**
- * Service responsible for managing Work Period Review (PMK) records.
- * PMK data is used to adjust the baseline work period for KGB calculations.
- */
 class PmkService
 {
+    public function __construct(
+        private readonly \App\Services\SimAsn\SimAsnService $simAsnService,
+        private readonly \App\Services\Audit\AuditService $auditService,
+    ) {}
+
     /**
-     * Store a new PMK record.
-     *
-     * @param array<string, mixed> $data
-     * @return RiwayatPmk
+     * List PMK records with pagination and filtering.
      */
-    public function store(array $data): RiwayatPmk
+    public function list(array $filters = []): LengthAwarePaginator
+    {
+        $query = RiwayatPmk::query()
+            ->with(['opd'])
+            ->byPegawai($filters['pegawai_id'] ?? null)
+            ->byTahun($filters['tahun'] ?? null)
+            ->byStatus($filters['status'] ?? null)
+            ->search($filters['search'] ?? null);
+
+        $sortField = $filters['sort'] ?? 'created_at';
+        $sortDir = $filters['dir'] ?? 'desc';
+        $allowedSorts = ['created_at', 'updated_at', 'tanggal_sk', 'pegawai_nama', 'pegawai_nip', 'status', 'no_sk'];
+        if (!in_array($sortField, $allowedSorts)) {
+            $sortField = 'created_at';
+        }
+        $query->orderBy($sortField, $sortDir === 'asc' ? 'asc' : 'desc');
+
+        return $query->paginate($filters['per_page'] ?? 15);
+    }
+
+    /**
+     * Create a new PMK record.
+     */
+    public function create(array $data): RiwayatPmk
     {
         return DB::transaction(function () use ($data) {
-            if (isset($data['file_sk']) && $data['file_sk'] instanceof UploadedFile) {
-                $file = $this->storeFile($data['file_sk'], 'pmk/sk');
-                $data['file_id'] = $file->id;
-                unset($data['file_sk']);
-            }
+            $pegawaiId = $data['pegawai_id'];
 
-            $pmk = RiwayatPmk::create($data);
+            // Get pegawai from SIM-ASN
+            $pegawai = $this->simAsnService->getPegawai($pegawaiId);
 
-            Log::info('PmkService: PMK record created successfully.', [
-                'pegawai_id' => $pmk->pegawai_id,
-                'nip'        => $pmk->nip,
-                'sk_nomor'   => $pmk->nomor_sk,
+            $pmk = RiwayatPmk::create([
+                'pegawai_id' => $pegawaiId,
+                'pegawai_nama' => $pegawai['nama'] ?? null,
+                'pegawai_nip' => $pegawai['nip'] ?? null,
+                'opd_id' => $pegawai['opd_id'] ?? null,
+                'status' => PmkStatus::DRAFT,
+                'no_sk' => $data['no_sk'] ?? null,
+                'tanggal_sk' => $data['tanggal_sk'] ?? null,
+                'masa_kerja_lama_tahun' => $data['masa_kerja_lama_tahun'] ?? 0,
+                'masa_kerja_lama_bulan' => $data['masa_kerja_lama_bulan'] ?? 0,
+                'masa_kerja_baru_tahun' => $data['masa_kerja_baru_tahun'] ?? 0,
+                'masa_kerja_baru_bulan' => $data['masa_kerja_baru_bulan'] ?? 0,
+                'file_sk_id' => $data['file_sk_id'] ?? null,
+                'keterangan' => $data['keterangan'] ?? null,
             ]);
+
+            $this->auditService->logPmk('CREATED', $pmk, null, 'PMK berhasil dibuat');
 
             return $pmk;
         });
     }
 
     /**
-     * Update an existing PMK record.
-     *
-     * @param int $id
-     * @param array<string, mixed> $data
-     * @return RiwayatPmk
+     * Find a PMK record by ID.
+     */
+    public function find(int $id): RiwayatPmk
+    {
+        $pmk = RiwayatPmk::query()
+            ->with(['opd'])
+            ->find($id);
+
+        if (!$pmk) {
+            throw ApiError::notFound('PMK_NOT_FOUND', 'Data PMK tidak ditemukan', ['id' => $id]);
+        }
+
+        return $pmk;
+    }
+
+    /**
+     * Update a PMK record.
      */
     public function update(int $id, array $data): RiwayatPmk
     {
-        return DB::transaction(function () use ($id, $data) {
-            $pmk = RiwayatPmk::findOrFail($id);
-            $pmk->update($data);
+        $pmk = $this->find($id);
 
-            Log::info('PmkService: PMK record updated.', [
-                'pmk_id' => $id,
-                'nip'    => $pmk->nip,
-            ]);
+        if (!$pmk->isEditable()) {
+            throw ApiError::notFound(
+                'PMK_VALIDATION_FAILED',
+                'PMK sudah aktif/nonaktif, tidak bisa diedit',
+                ['id' => $id]
+            );
+        }
 
-            return $pmk;
-        });
+        $oldData = $pmk->toArray();
+        $pmk->update(array_intersect_key($data, array_flip($pmk->getFillable())));
+
+        $this->auditService->logPmk('UPDATED', $pmk, $oldData);
+
+        return $pmk->fresh(['opd']);
     }
 
     /**
      * Delete a PMK record.
-     *
-     * @param int $id
-     * @return bool|null
      */
-    public function delete(int $id): ?bool
+    public function delete(int $id): bool
     {
-        return DB::transaction(function () use ($id) {
-            $pmk = RiwayatPmk::findOrFail($id);
-            return $pmk->delete();
-        });
-    }
+        $pmk = $this->find($id);
 
-    /**
-     * Retrieve the most recent PMK record for a specific employee.
-     *
-     * @param int $pegawaiId
-     * @return RiwayatPmk|null
-     */
-    public function getLatestForPegawai(int $pegawaiId): ?RiwayatPmk
-    {
-        return RiwayatPmk::query()
-            ->where('pegawai_id', $pegawaiId)
-            ->orderByDesc('tanggal_sk')
-            ->orderByDesc('id')
-            ->first();
-    }
-
-    /**
-     * Get a list of PMK records with optional filters.
-     *
-     * @param array<string, mixed> $filters
-     * @return Collection<int, RiwayatPmk>
-     */
-    public function getList(array $filters = []): Collection
-    {
-        $query = RiwayatPmk::query()->with('file');
-
-        if (! empty($filters['pegawai_id'])) {
-            $query->where('pegawai_id', $filters['pegawai_id']);
+        if (!$pmk->isDeletable()) {
+            throw ApiError::notFound(
+                'PMK_VALIDATION_FAILED',
+                'PMK sudah aktif/nonaktif, tidak bisa dihapus',
+                ['id' => $id]
+            );
         }
 
-        if (! empty($filters['nip'])) {
-            $query->where('nip', 'like', "%{$filters['nip']}%");
-        }
+        $oldData = $pmk->toArray();
+        $pmk->delete();
 
-        return $query->orderByDesc('tanggal_sk')->orderByDesc('id')->get();
-    }
+        $this->auditService->logPmk('DELETED', $pmk, $oldData, 'PMK berhasil dihapus');
 
-    /**
-     * Find a PMK record or throw an exception.
-     *
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
-     */
-    public function findOrFail(int $id): RiwayatPmk
-    {
-        return RiwayatPmk::with('file')->findOrFail($id);
-    }
-
-    /**
-     * Store uploaded file and create file record.
-     */
-    protected function storeFile(UploadedFile $uploadedFile, string $folder): File
-    {
-        $path = $uploadedFile->store($folder, 'public');
-
-        return File::create([
-            'path' => $path,
-            'name' => basename($path),
-            'original_name' => $uploadedFile->getClientOriginalName(),
-            'mime' => $uploadedFile->getMimeType(),
-            'size' => $uploadedFile->getSize(),
-        ]);
+        return true;
     }
 }

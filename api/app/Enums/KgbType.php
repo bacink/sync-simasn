@@ -7,6 +7,14 @@ namespace App\Enums;
  */
 enum KgbType: string
 {
-    case Reguler = 'reguler';
-    case Penyesuaian = 'penyesuaian';
+    case REGULER = 'reguler';
+    case PENYESUAIAN = 'penyesuaian';
+
+    public function label(): string
+    {
+        return match($this) {
+            self::REGULER => 'Reguler',
+            self::PENYESUAIAN => 'Penyesuaian',
+        };
+    }
 }

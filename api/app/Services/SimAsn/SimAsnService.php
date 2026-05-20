@@ -2,148 +2,82 @@
 
 namespace App\Services\SimAsn;
 
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
-use SIM_ASN\AppClient;
+use App\Exceptions\ApiError;
+use App\Exceptions\ApiErrorCode;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Log;
 
 class SimAsnService
 {
-    /**
-     * SimAsnService constructor.
-     */
-    public function __construct(
-        protected AppClient $client
-    ) {}
+    private ?string $baseUrl;
+    private ?string $apiKey;
+    private int $timeout;
 
-    /**
-     * Get basic employee data.
-     */
-    public function getPegawai(int|string $id): array
+    public function __construct()
     {
-        $pegawai = $this->client->pegawai()->getDetail($id);
-
-        return $pegawai ? $pegawai->toArray() : [];
+        $this->baseUrl = config('sim-asn.base_url');
+        $this->apiKey = config('sim-asn.api_key');
+        $this->timeout = (int) config('sim-asn.timeout', 30);
     }
 
-    /**
-     * Get employee rank/class (golongan) history.
-     */
-    public function getRiwayatGolongan(int|string $pegawaiId): array
+    private function client(): \Illuminate\Http\Client\PendingRequest
     {
-        $riwayat = $this->client->pegawai()->getRiwayatGolongan($pegawaiId);
-
-        return $riwayat ? $riwayat->toArray() : [];
+        return Http::timeout($this->timeout)
+            ->when($this->apiKey, fn($r) => $r->withHeaders(['X-API-Key' => $this->apiKey]));
     }
 
-    /**
-     * Get employee position (jabatan) history.
-     */
-    public function getRiwayatJabatan(int|string $pegawaiId): array
+    public function getPegawai(int $id): array
     {
-        $riwayat = $this->client->pegawai()->getRiwayatJabatan($pegawaiId);
-
-        return $riwayat ? $riwayat->toArray() : [];
-    }
-
-    /**
-     * Get the latest rank/class (golongan) for an employee.
-     */
-    public function getLastGolongan(int|string $pegawaiId): ?array
-    {
-        $riwayat = $this->client->pegawai()->getRiwayatGolongan($pegawaiId);
-
-        if (!$riwayat || $riwayat->isEmpty()) {
-            return null;
+        try {
+            $response = $this->client()->get("{$this->baseUrl}/pegawai/{$id}");
+            $response->throw();
+            return $response->json();
+        } catch (RequestException $e) {
+            Log::error('SIM-ASN getPegawai failed', ['id' => $id, 'error' => $e->getMessage()]);
+            throw new ApiError(ApiErrorCode::SIMASN_DATA_NOT_FOUND, [], 'Data pegawai tidak ditemukan di SIM-ASN', 404);
+        } catch (\Exception $e) {
+            throw new ApiError(ApiErrorCode::SIMASN_CONNECTION_FAILED);
         }
-
-        // Return the first/latest record as an array
-        return $riwayat->first()?->toArray();
     }
 
-    /**
-     * Search for employees.
-     */
-    public function searchPegawai(string $query, ?string $jenis = null, int $limit = 100): array
+    public function getPegawaiList(array $params = []): array
     {
-        $filters = ['search' => $query, 'limit' => $limit];
-        if ($jenis !== null) {
-            $filters['jenis'] = $jenis;
+        try {
+            $response = $this->client()->get("{$this->baseUrl}/pegawai", $params);
+            $response->throw();
+            return $response->json();
+        } catch (RequestException $e) {
+            throw new ApiError(ApiErrorCode::SIMASN_CONNECTION_FAILED);
         }
-
-        $results = $this->client->pegawai()->getList($filters);
-
-        return collect($results->items())->map(function ($item) {
-            return is_object($item) && method_exists($item, 'toArray') ? $item->toArray() : (array) $item;
-        })->all();
     }
 
-    /**
-     * List all employees.
-     * we can get pagination metadata from
-     * $results->currentPage(),
-     * $results->perPage(),
-     * $results->total(),
-     * $results->lastPage(),
-     * etc. if needed
-     */
-    public function listPegawai(?string $jenis = null, int $limit = 100): array
+    public function getRiwayatGolongan(int $pegawaiId): array
     {
-        $filters = ['limit' => $limit];
-        if ($jenis !== null) {
-            $filters['jenis'] = $jenis;
+        try {
+            $response = $this->client()->get("{$this->baseUrl}/pegawai/{$pegawaiId}/golongan");
+            $response->throw();
+            return $response->json();
+        } catch (RequestException $e) {
+            throw new ApiError(ApiErrorCode::SIMASN_CONNECTION_FAILED);
         }
-
-        $results = $this->client->pegawai()->getList($filters);
-
-        return collect($results->items())->map(function ($item) {
-            return is_object($item) && method_exists($item, 'toArray') ? $item->toArray() : (array) $item;
-        })->all();
     }
 
-    /**
-     * List all employees and return paginator for metadata.
-     *
-     * @param int $page 1-based page number (default 1)
-     */
-    public function listPegawaiPaginator(?string $jenis = null, int $limit = 100, int $page = 1): LengthAwarePaginator
+    public function getLastGolongan(int $pegawaiId): ?array
     {
-        $filters = ['limit' => $limit, 'page' => $page];
-        if ($jenis !== null) {
-            $filters['jenis'] = $jenis;
-        }
-
-        return $this->client->pegawai()->getList($filters);
+        $riwayat = $this->getRiwayatGolongan($pegawaiId);
+        if (empty($riwayat)) return null;
+        return collect($riwayat)->sortByDesc('tmt')->first();
     }
 
-    /**
-     * Get employee documents (dokumen) from SIM-ASN.
-     *
-     * @return array<array{id, jenis_dokumen, nama, file_url, ...}>
-     */
-    public function getDokumen(int|string $pegawaiId): array
+    public function getRiwayatJabatan(int $pegawaiId): array
     {
-        $result = $this->client->pegawai()->getDokumen($pegawaiId);
-
-        if ($result instanceof LengthAwarePaginator) {
-            return array_map(fn($item) => $item->toArray(), $result->items());
+        try {
+            $response = $this->client()->get("{$this->baseUrl}/pegawai/{$pegawaiId}/jabatan");
+            $response->throw();
+            return $response->json();
+        } catch (RequestException $e) {
+            throw new ApiError(ApiErrorCode::SIMASN_CONNECTION_FAILED);
         }
-
-        return array_map(fn($item) => $item->toArray(), $result->all());
-    }
-
-    /**
-     * Get employee files (file) from SIM-ASN.
-     *
-     * @return array<array{id, jenis, nama, url, ...}>
-     */
-    public function getFile(int|string $pegawaiId): array
-    {
-        $result = $this->client->pegawai()->getFile($pegawaiId);
-
-        if ($result instanceof LengthAwarePaginator) {
-            return array_map(fn($item) => $item->toArray(), $result->items());
-        }
-
-        return array_map(fn($item) => $item->toArray(), $result->all());
     }
 }

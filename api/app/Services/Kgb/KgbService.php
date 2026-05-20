@@ -2,245 +2,310 @@
 
 namespace App\Services\Kgb;
 
-use App\DTOs\KgbApprovalDTO;
-use App\DTOs\KgbGenerateDTO;
-use App\DTOs\KgbSubmitDTO;
-use App\Enums\JenisAsn;
 use App\Enums\KgbStatus;
-use App\Enums\KgbType;
-use App\Models\File;
-use App\Models\KgbApproval;
-use App\Models\KgbCalculation;
-use App\Models\RefGolongan;
+use App\Exceptions\ApiError;
+use App\Exceptions\ApiErrorCode;
+use App\Models\Opd;
 use App\Models\RiwayatKgb;
-use App\Services\AuditService;
 use App\Services\Pmk\PmkService;
 use App\Services\SimAsn\SimAsnService;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class KgbService
 {
     public function __construct(
-        protected SimAsnService $simAsnService,
-        protected KgbCalculationService $calculationService,
-        protected KgbSnapshotService $snapshotService,
-        protected PmkService $pmkService,
-        protected AuditService $auditService,
-        protected PeraturanResolverService $peraturanResolver,
+        private readonly SimAsnService $simAsnService,
+        private readonly PmkService $pmkService,
+        private readonly KgbCalculationService $calculationService,
+        private readonly KgbSnapshotService $snapshotService,
+        private readonly KgbDocumentService $documentService,
+        private readonly \App\Services\Audit\AuditService $auditService,
     ) {}
 
-    public function generateDraft(KgbGenerateDTO $dto): RiwayatKgb
+    /**
+     * List KGB records with pagination and filtering.
+     */
+    public function list(array $filters = []): LengthAwarePaginator
     {
-        $pegawaiId = $dto->pegawaiId;
-        $pegawai = $this->simAsnService->getPegawai($pegawaiId);
-        $lastGolongan = $this->simAsnService->getLastGolongan($pegawaiId);
+        $query = RiwayatKgb::query()
+            ->with(['opd', 'snapshot', 'pmk', 'refGaji'])
+            ->byStatus($filters['status'] ?? null)
+            ->byOpd($filters['opd_id'] ?? null)
+            ->byPegawai($filters['pegawai_id'] ?? null)
+            ->byTahun($filters['tahun'] ?? null)
+            ->search($filters['search'] ?? null);
 
-        if (! $lastGolongan) {
-            throw new \RuntimeException('Pegawai belum memiliki riwayat golongan');
+        // Sort
+        $sortField = $filters['sort'] ?? 'created_at';
+        $sortDir = $filters['dir'] ?? 'desc';
+        $allowedSorts = [
+            'created_at', 'updated_at', 'tmt_kgb_baru', 'pegawai_nama',
+            'pegawai_nip', 'status', 'gaji_baru',
+        ];
+        if (!in_array($sortField, $allowedSorts)) {
+            $sortField = 'created_at';
         }
+        $query->orderBy($sortField, $sortDir === 'asc' ? 'asc' : 'desc');
 
-        $calcData = $this->prepareCalculationData($pegawai, $lastGolongan);
-        $activePeraturan = $this->peraturanResolver->getActive();
+        return $query->paginate($filters['per_page'] ?? 15);
+    }
 
-        // Resolve golongan FK
-        $golonganFk = RefGolongan::query()
-            ->where('golongan', $lastGolongan['golongan'])
-            ->where('jenis_asn', $pegawai['jenis_asn'] ?? JenisAsn::PNS->value)
-            ->first();
+    /**
+     * Generate a new KGB draft for a given pegawai.
+     */
+    public function generateDraft(int $pegawaiId, ?int $pmkId = null): RiwayatKgb
+    {
+        return DB::transaction(function () use ($pegawaiId, $pmkId) {
+            // 1. Get pegawai data from SIM-ASN
+            $pegawai = $this->simAsnService->getPegawai($pegawaiId);
 
-        return DB::transaction(function () use ($pegawai, $lastGolongan, $calcData, $pegawaiId, $activePeraturan, $golonganFk) {
+            // 2. Get last golongan from SIM-ASN
+            $golongan = $this->simAsnService->getLastGolongan($pegawaiId);
+            if (!$golongan) {
+                throw ApiError::notFound(
+                    'SIMASN_DATA_NOT_FOUND',
+                    'Riwayat golongan tidak ditemukan di SIM-ASN',
+                    ['pegawai_id' => $pegawaiId]
+                );
+            }
+
+            $golonganKode = $golongan['kode_golongan'] ?? $golongan['golongan'] ?? null;
+            if (!$golonganKode) {
+                throw ApiError::notFound(
+                    'SIMASN_DATA_NOT_FOUND',
+                    'Kode golongan tidak ditemukan di SIM-ASN',
+                    ['pegawai_id' => $pegawaiId]
+                );
+            }
+
+            // 3. Determine masa kerja
+            $masaKerjaTahun = $golongan['masa_kerja_tahun'] ?? 0;
+            $masaKerjaBulan = $golongan['masa_kerja_bulan'] ?? 0;
+
+            if ($pmkId) {
+                $pmk = $this->pmkService->find($pmkId);
+                if ($pmk) {
+                    $masaKerjaTahun = $pmk->masa_kerja_baru_tahun ?? $masaKerjaTahun;
+                    $masaKerjaBulan = $pmk->masa_kerja_baru_bulan ?? $masaKerjaBulan;
+                }
+            }
+
+            // 4. Calculate gaji baru
+            $calculatedGaji = $this->calculationService->calculateGajiBaru(
+                $golonganKode,
+                $masaKerjaTahun,
+                $masaKerjaBulan
+            );
+
+            // 5. Find last KGB for tmt_lama and gaji_lama
+            $lastKgb = RiwayatKgb::query()
+                ->where('pegawai_id', $pegawaiId)
+                ->orderByDesc('tmt_kgb_baru')
+                ->first();
+
+            $tmtLama = $lastKgb?->tmt_kgb_baru
+                ?? Carbon::parse($golongan['tmt'] ?? now()->subYear()->format('Y-m-d'));
+            $gajiLama = $lastKgb?->gaji_baru
+                ?? 0;
+
+            // 6. Calculate tmt_baru
+            $tmtBaru = $this->calculationService->calculateTmtBaru($tmtLama);
+
+            // 7. Determine opd_id
+            $opdId = $pegawai['opd_id'] ?? null;
+
+            // 8. Create RiwayatKgb record
             $kgb = RiwayatKgb::create([
                 'pegawai_id' => $pegawaiId,
-                'golongan_id' => $golonganFk?->id,
-                'peraturan_id' => $activePeraturan->id,
-                'masa_kerja_tahun' => $calcData['masa_kerja'],
-                'masa_kerja_bulan' => $calcData['masa_kerja_bulan'],
-                'gaji_lama' => $calcData['gaji_lama']?->gaji ?? 0,
-                'gaji_baru' => $calcData['gaji_baru']->gaji,
-                'tmt_kgb' => now()->addYears(2)->format('Y-m-d'),
-                'jenis_kgb' => KgbType::Reguler,
-                'status' => KgbStatus::Draft,
-                'pmk_id' => $calcData['pmk']?->id,
+                'pegawai_nama' => $pegawai['nama'] ?? null,
+                'pegawai_nip' => $pegawai['nip'] ?? null,
+                'opd_id' => $opdId,
+                'status' => KgbStatus::DRAFT,
+                'golongan' => $golonganKode,
+                'masa_kerja_tahun' => $calculatedGaji['masa_kerja_tahun'],
+                'masa_kerja_bulan' => $calculatedGaji['masa_kerja_bulan'],
+                'gaji_lama' => $gajiLama,
+                'gaji_baru' => $calculatedGaji['gaji'],
+                'tmt_kgb_lama' => $tmtLama,
+                'tmt_kgb_baru' => $tmtBaru,
+                'pmk_id' => $pmkId,
             ]);
 
-            KgbCalculation::create([
-                'riwayat_kgb_id' => $kgb->id,
-                'golongan' => $calcData['gaji_baru']->golongan,
-                'masa_kerja' => $calcData['masa_kerja_baru'],
-                'gaji_ref_id' => $calcData['gaji_baru']->id,
-                'gaji_hasil' => $calcData['gaji_baru']->gaji,
-                'formula' => "golongan={$calcData['gaji_baru']->golongan}, masa_kerja={$calcData['masa_kerja_baru']}",
-            ]);
+            // 9. Store snapshot
+            $this->snapshotService->store($kgb, $pegawai);
 
-            $this->snapshotService->store($kgb, $pegawai, $activePeraturan->id, $calcData['gaji_baru']->gaji);
-            $this->auditService->log('riwayat_kgb', $kgb->id, 'create_draft', null, $kgb->toArray());
-
-            Log::info('KgbService: KGB Draft generated', ['pegawai_id' => $pegawaiId, 'riwayat_kgb_id' => $kgb->id]);
+            // 10. Audit log
+            $this->auditService->logKgb('GENERATED', $kgb, null, 'Draft KGB berhasil dibuat');
 
             return $kgb;
         });
     }
 
     /**
-     * @param array{pegawai: array, lastGolongan: array} $params
-     * @return array{masa_kerja: int, masa_kerja_bulan: int, masa_kerja_baru: int, gaji_lama: mixed, gaji_baru: mixed, pmk: mixed}
+     * Find a KGB record by ID with eager loading.
      */
-    protected function prepareCalculationData(array $pegawai, array $lastGolongan): array
+    public function find(int $id): RiwayatKgb
     {
-        $masaKerja = (int) ($lastGolongan['masa_kerja_tahun'] ?? 0);
-        $masaKerjaBulan = (int) ($lastGolongan['masa_kerja_bulan'] ?? 0);
+        $kgb = RiwayatKgb::query()
+            ->with(['opd', 'snapshot', 'pmk', 'refGaji'])
+            ->find($id);
 
-        $pmk = $this->pmkService->getLatestForPegawai($pegawai['id']);
-        if ($pmk) {
-            $masaKerja = $pmk->masa_kerja_baru_tahun;
-            $masaKerjaBulan = $pmk->masa_kerja_baru_bulan;
-        }
-
-        $masaKerjaBaru = $masaKerja + 2;
-        $jenisAsn = str_contains(strtolower($pegawai['status_pegawai'] ?? ''), 'pppk') ? JenisAsn::PPPK : JenisAsn::PNS;
-
-        $gajiLama = $this->calculationService->calculate($jenisAsn, $lastGolongan['golongan'], $masaKerja);
-        $gajiBaru = $this->calculationService->calculate($jenisAsn, $lastGolongan['golongan'], $masaKerjaBaru);
-
-        if (! $gajiBaru) {
-            throw new \RuntimeException('Referensi gaji tidak ditemukan');
-        }
-
-        return [
-            'masa_kerja' => $masaKerja,
-            'masa_kerja_bulan' => $masaKerjaBulan,
-            'masa_kerja_baru' => $masaKerjaBaru,
-            'gaji_lama' => $gajiLama,
-            'gaji_baru' => $gajiBaru,
-            'pmk' => $pmk,
-        ];
-    }
-
-    public function submit(RiwayatKgb $kgb, KgbSubmitDTO $dto): RiwayatKgb
-    {
-        if ($kgb->status !== KgbStatus::Draft) {
-            throw new \RuntimeException('KGB hanya bisa diajukan dari status draft');
-        }
-
-        return DB::transaction(function () use ($kgb, $dto) {
-            $oldData = $kgb->toArray();
-
-            $kgb->update([
-                'status' => KgbStatus::Diajukan,
-                'nomor_sk' => $dto->nomorSk,
-                'tanggal_sk' => $dto->tanggalSk,
-            ]);
-
-            $this->createApprovalRecord($kgb, 'operator', KgbStatus::Diajukan);
-            $this->auditService->log('riwayat_kgb', $kgb->id, 'submit', $oldData, $kgb->toArray());
-
-            return $kgb;
-        });
-    }
-
-    public function verify(RiwayatKgb $kgb, KgbApprovalDTO $dto): RiwayatKgb
-    {
-        if ($kgb->status !== KgbStatus::Diajukan) {
-            throw new \RuntimeException('KGB hanya bisa diverifikasi dari status diajukan');
-        }
-
-        return DB::transaction(function () use ($kgb, $dto) {
-            $oldData = $kgb->toArray();
-            $kgb->update(['status' => KgbStatus::Diverifikasi]);
-
-            $this->createApprovalRecord($kgb, 'verifikator', KgbStatus::Diverifikasi, $dto->catatan);
-            $this->auditService->log('riwayat_kgb', $kgb->id, 'verify', $oldData, $kgb->toArray());
-
-            return $kgb;
-        });
-    }
-
-    public function approve(RiwayatKgb $kgb): RiwayatKgb
-    {
-        if ($kgb->status !== KgbStatus::Diverifikasi) {
-            throw new \RuntimeException('KGB hanya bisa disetujui dari status diverifikasi');
-        }
-
-        return DB::transaction(function () use ($kgb) {
-            $oldData = $kgb->toArray();
-            $kgb->update(['status' => KgbStatus::Disetujui]);
-
-            $this->createApprovalRecord($kgb, 'admin', KgbStatus::Disetujui);
-            $this->auditService->log('riwayat_kgb', $kgb->id, 'approve', $oldData, $kgb->toArray());
-
-            return $kgb;
-        });
-    }
-
-    public function reject(RiwayatKgb $kgb, KgbApprovalDTO $dto): RiwayatKgb
-    {
-        if (! in_array($kgb->status, [KgbStatus::Diajukan, KgbStatus::Diverifikasi])) {
-            throw new \RuntimeException('KGB tidak bisa ditolak dari status saat ini');
-        }
-
-        return DB::transaction(function () use ($kgb, $dto) {
-            $oldData = $kgb->toArray();
-            $kgb->update(['status' => KgbStatus::Ditolak]);
-
-            $this->createApprovalRecord($kgb, 'reviewer', KgbStatus::Ditolak, $dto->catatan);
-            $this->auditService->log('riwayat_kgb', $kgb->id, 'reject', $oldData, $kgb->toArray());
-
-            return $kgb;
-        });
-    }
-
-    protected const STEP_ORDER = [
-        'operator' => 1,
-        'verifikator' => 2,
-        'admin' => 3,
-        'reviewer' => 4,
-    ];
-
-    protected function createApprovalRecord(RiwayatKgb $kgb, string $role, KgbStatus $status, ?string $catatan = null): void
-    {
-        KgbApproval::create([
-            'riwayat_kgb_id' => $kgb->id,
-            'user_id' => Auth::id(),
-            'role' => $role,
-            'step_order' => self::STEP_ORDER[$role] ?? 1,
-            'catatan' => $catatan,
-        ]);
-    }
-
-    public function findOrFail(int|string $id): RiwayatKgb
-    {
-        $kgb = RiwayatKgb::with(['snapshot', 'calculation', 'pmk', 'approvals.user', 'golongan'])->find($id);
-
-        if (! $kgb) {
-            throw new \RuntimeException('KGB tidak ditemukan');
+        if (!$kgb) {
+            throw ApiError::notFound('KGB_NOT_FOUND', 'Data KGB tidak ditemukan', ['id' => $id]);
         }
 
         return $kgb;
     }
 
-    public function getList(array $filters = []): \Illuminate\Database\Eloquent\Collection
+    /**
+     * Update a KGB record.
+     */
+    public function update(int $id, array $data): RiwayatKgb
     {
-        $query = RiwayatKgb::with(['snapshot', 'golongan', 'peraturan']);
+        $kgb = $this->find($id);
 
-        if (! empty($filters['status'])) {
-            $query->where('status', $filters['status']);
+        if (!$kgb->isEditable()) {
+            throw ApiError::notFound('KGB_CANNOT_MODIFY', 'KGB sudah diajukan/diverifikasi/disetujui, tidak bisa diubah', ['id' => $id]);
         }
 
-        if (! empty($filters['pegawai_id'])) {
-            $query->where('pegawai_id', $filters['pegawai_id']);
+        $oldData = $kgb->toArray();
+        $kgb->update(array_intersect_key($data, array_flip($kgb->getFillable())));
+
+        $this->auditService->logKgb('UPDATED', $kgb, $oldData);
+
+        return $kgb;
+    }
+
+    /**
+     * Delete a KGB record.
+     */
+    public function delete(int $id): bool
+    {
+        $kgb = $this->find($id);
+
+        if (!$kgb->isDeletable()) {
+            throw ApiError::notFound('KGB_CANNOT_MODIFY', 'KGB sudah diajukan/diverifikasi/disetujui, tidak bisa dihapus', ['id' => $id]);
         }
 
-        if (! empty($filters['nip'])) {
-            $query->whereHas('snapshot', fn($q) => $q->whereRaw("json_extract(data_json, '$.nip') LIKE ?", ["%{$filters['nip']}%"]));
+        $oldData = $kgb->toArray();
+        $kgb->delete();
+
+        $this->auditService->logKgb('DELETED', $kgb, $oldData, 'KGB berhasil dihapus');
+
+        return true;
+    }
+
+    /**
+     * Submit a KGB record (DRAFT -> DIAJUKAN).
+     */
+    public function submit(int $id, ?string $notes = null): RiwayatKgb
+    {
+        $kgb = $this->find($id);
+
+        if ($kgb->status !== KgbStatus::DRAFT) {
+            throw ApiError::invalidTransition('KGB hanya bisa diajukan dari status DRAFT');
         }
 
-        if (! empty($filters['tahun'])) {
-            $query->whereYear('tmt_kgb', $filters['tahun']);
+        $kgb->update(['status' => KgbStatus::DIAJUKAN]);
+        if ($notes) {
+            $kgb->update(['notes' => $notes]);
         }
 
-        return $query->orderByDesc('created_at')->get();
+        $this->auditService->logKgb('SUBMITTED', $kgb, null, $notes ?? 'KGB diajukan');
+
+        return $kgb;
+    }
+
+    /**
+     * Verify a KGB record (DIAJUKAN -> DIVERIFIKASI or DITOLAK).
+     */
+    public function verify(int $id, string $action, ?string $notes = null): RiwayatKgb
+    {
+        $kgb = $this->find($id);
+
+        if ($kgb->status !== KgbStatus::DIAJUKAN) {
+            throw ApiError::invalidTransition('KGB hanya bisa diverifikasi dari status DIAJUKAN');
+        }
+
+        if ($action === 'approve') {
+            $kgb->update([
+                'status' => KgbStatus::DIVERIFIKASI,
+                'notes' => $notes,
+            ]);
+            $this->auditService->logKgb('VERIFIED', $kgb, null, $notes ?? 'KGB diverifikasi');
+        } elseif ($action === 'reject') {
+            $kgb->update([
+                'status' => KgbStatus::DITOLAK,
+                'notes' => $notes,
+            ]);
+            $this->auditService->logKgb('REJECTED', $kgb, null, $notes ?? 'KGB ditolak');
+        } else {
+            throw ApiError::invalidTransition("Action verifikasi tidak valid: {$action}");
+        }
+
+        return $kgb;
+    }
+
+    /**
+     * Approve a KGB record (DIVERIFIKASI -> DISETUJUI).
+     */
+    public function approve(int $id, ?string $notes = null): RiwayatKgb
+    {
+        $kgb = $this->find($id);
+
+        if ($kgb->status !== KgbStatus::DIVERIFIKASI) {
+            throw ApiError::invalidTransition('KGB hanya bisa disetujui dari status DIVERIFIKASI');
+        }
+
+        $kgb->update([
+            'status' => KgbStatus::DISETUJUI,
+            'notes' => $notes,
+        ]);
+
+        $this->auditService->logKgb('APPROVED', $kgb, null, $notes ?? 'KGB disetujui');
+
+        return $kgb;
+    }
+
+    /**
+     * Reject a KGB record (any state -> DITOLAK).
+     */
+    public function reject(int $id, string $reason): RiwayatKgb
+    {
+        $kgb = $this->find($id);
+
+        if ($kgb->status === KgbStatus::DISETUJUI || $kgb->status === KgbStatus::DITOLAK) {
+            throw ApiError::invalidTransition('KGB yang sudah disetujui/ditolak tidak bisa ditolak lagi');
+        }
+
+        $kgb->update([
+            'status' => KgbStatus::DITOLAK,
+            'notes' => $reason,
+        ]);
+
+        $this->auditService->logKgb('REJECTED', $kgb, null, $reason);
+
+        return $kgb;
+    }
+
+    /**
+     * Get snapshot data for a KGB record.
+     */
+    public function getSnapshot(int $id): array
+    {
+        $kgb = $this->find($id);
+        $snapshot = $this->snapshotService->get($kgb);
+        return $snapshot?->data_json ?? [];
+    }
+
+    /**
+     * Get SK document URL for a KGB record.
+     */
+    public function getDocumentUrl(int $id): ?string
+    {
+        $kgb = $this->find($id);
+        return $this->documentService->getSkUrl($kgb);
     }
 }

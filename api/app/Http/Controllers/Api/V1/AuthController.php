@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
 class AuthController extends Controller
 {
@@ -27,9 +28,6 @@ class AuthController extends Controller
                 401
             );
         }
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
 
         $user = Auth::user();
         $token = $user->createToken('api-token')->plainTextToken;
@@ -51,7 +49,15 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
-        $request->user()->currentAccessToken()->delete();
+        $user = $request->user();
+        $token = $request->bearerToken();
+
+        if ($token) {
+            $tokenId = explode('|', $token)[0] ?? null;
+            if ($tokenId) {
+                $user->tokens()->where('id', $tokenId)->delete();
+            }
+        }
 
         return ApiResponse::success(null, ['message' => 'Logged out successfully']);
     }
@@ -89,6 +95,9 @@ class AuthController extends Controller
                 'password' => Hash::make(bin2hex(random_bytes(16))),
             ]);
 
+            if (! Role::where('name', 'operator')->where('guard_name', 'sanctum')->exists()) {
+                Role::create(['name' => 'operator', 'guard_name' => 'sanctum']);
+            }
             $user->assignRole('operator');
 
             return $user;
@@ -96,7 +105,7 @@ class AuthController extends Controller
 
         $token = $user->createToken('sim-asn-token')->plainTextToken;
 
-        return ApiResponse::success([
+        return ApiResponse::created([
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -107,6 +116,6 @@ class AuthController extends Controller
                 'permissions' => $user->getAllPermissions()->pluck('name'),
             ],
             'token' => $token,
-        ], 201);
+        ]);
     }
 }

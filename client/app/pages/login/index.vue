@@ -3,6 +3,8 @@ import { useAuthStore } from '~/stores/auth.store'
 
 const authStore = useAuthStore()
 const router = useRouter()
+const route = useRoute()
+
 definePageMeta({
   layout: 'auth'
 })
@@ -13,6 +15,28 @@ const form = ref({
 
 const loading = ref(false)
 const error = ref<string | null>(null)
+
+onMounted(() => {
+  const accessToken = route.query.access_token as string | undefined
+  const errorParam = route.query.error as string | undefined
+
+  if (accessToken) {
+    authStore.loginWithToken(accessToken).then(() => {
+      router.push('/dashboard')
+    }).catch((e: any) => {
+      error.value = e.data?.message || 'Login gagal. Silakan coba lagi.'
+    })
+    return
+  }
+
+  if (errorParam) {
+    if (errorParam === 'user_not_found') {
+      error.value = 'Akun Anda belum terdaftar di sistem ini'
+    } else {
+      error.value = 'Login SIM-ASN dibatalkan'
+    }
+  }
+})
 
 async function login() {
   loading.value = true
@@ -62,6 +86,17 @@ async function login() {
           {{ loading ? 'Memuat...' : 'Masuk' }}
         </button>
       </form>
+
+      <div class="flex items-center gap-3 my-6">
+        <div class="flex-1 h-px bg-gray-300"></div>
+        <span class="text-sm text-gray-400">atau</span>
+        <div class="flex-1 h-px bg-gray-300"></div>
+      </div>
+
+      <a href="/auth/sim-asn"
+        class="block w-full px-4 py-2 border-2 border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 font-medium text-center">
+        Masuk dengan SIM-ASN
+      </a>
     </div>
   </div>
 </template>

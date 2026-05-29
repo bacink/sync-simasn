@@ -2,12 +2,20 @@ import { defineStore } from "pinia";
 import type { User } from "~/types/api";
 import type { ApiResponse } from "~/types/api";
 
+interface OauthRegistrationPayload {
+  sim_asn_user_id: string;
+  name: string | null;
+  email: string | null;
+  access_token: string;
+  refresh_token: string | null;
+  expires_at: string | null;
+}
+
 interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
-  // OAuth registration payload — set when SIM-ASN user is not found
-  oauthRegistrationPayload: string | null;
+  oauthRegistrationPayload: OauthRegistrationPayload | null;
 }
 
 export const useAuthStore = defineStore("auth", {
@@ -20,7 +28,7 @@ export const useAuthStore = defineStore("auth", {
 
   getters: {
     userRole: (state): string | null =>
-      state.user?.role || state.user?.roles?.[0] || null,
+      state.user?.roles?.[0] || state.user?.role || null,
     isAdmin: (state) =>
       state.user?.role === "admin" || state.user?.roles?.includes("admin"),
     isVerifikator: (state) =>
@@ -80,11 +88,8 @@ export const useAuthStore = defineStore("auth", {
     },
 
     async loginWithToken(token: string): Promise<void> {
-      this.token = token;
-      this.isAuthenticated = true;
-      this.oauthRegistrationPayload = null;
-      this._persistToken(token);
-      await this.fetchUser();
+      this.setToken(token)
+      await this.fetchUser()
     },
 
     async logout(): Promise<void> {
@@ -98,12 +103,19 @@ export const useAuthStore = defineStore("auth", {
       this.token = null;
       this.isAuthenticated = false;
       this.oauthRegistrationPayload = null;
-      this._clearToken();
+      if (import.meta.client) {
+        localStorage.removeItem("auth_token");
+      }
+      if (import.meta.server) {
+        useCookie("auth_token").value = null;
+      }
     },
 
     async fetchUser(): Promise<void> {
-      const token = this._loadToken();
-      if (!token) return;
+      if (!this.token && import.meta.client) {
+        this.token = localStorage.getItem("auth_token") || null;
+      }
+      if (!this.token) return;
 
       const api = useApi();
       try {
@@ -111,18 +123,29 @@ export const useAuthStore = defineStore("auth", {
         this.user = res.data;
         this.isAuthenticated = true;
       } catch (e: any) {
-        // 401 = token invalid/expired — clear it
-        if (e.data?.status === 401) {
-          this.user = null;
-          this.token = null;
-          this.isAuthenticated = false;
-          this._clearToken();
+        // 401 means token is invalid/expired — clear it
+        if (e.statusCode === 401) {
+          this._clearAuth();
         }
+        throw e;
       }
     },
 
-    setOAuthRegistrationPayload(payload: string) {
+    setOAuthRegistrationPayload(payload: OauthRegistrationPayload): void {
       this.oauthRegistrationPayload = payload;
+    },
+
+    _clearAuth(): void {
+      this.user = null;
+      this.token = null;
+      this.isAuthenticated = false;
+      this.oauthRegistrationPayload = null;
+      if (import.meta.client) {
+        localStorage.removeItem("auth_token");
+      }
+      if (import.meta.server) {
+        useCookie("auth_token").value = null;
+      }
     },
 
     clearOAuthRegistrationPayload() {

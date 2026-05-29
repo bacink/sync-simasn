@@ -16,15 +16,21 @@ const form = ref({
 const loading = ref(false)
 const error = ref<string | null>(null)
 
-onMounted(() => {
-  const accessToken = route.query.access_token as string | undefined
+onMounted(async () => {
   const oauthRegister = route.query.oauth_register as string | undefined
+  const accessToken = route.query.access_token as string | undefined
   const errorParam = route.query.error as string | undefined
 
   if (oauthRegister) {
-    // SIM-ASN user not found — store registration payload and redirect to registration page
-    authStore.setOAuthRegistrationPayload(oauthRegister)
-    router.replace('/auth/register')
+    try {
+      const payload = JSON.parse(atob(oauthRegister))
+      authStore.setOAuthRegistrationPayload(payload)
+      await router.replace({ query: {} })
+      router.push('/auth/register')
+    } catch {
+      error.value = 'Data registrasi tidak valid. Silakan coba login lagi.'
+      await router.replace({ query: {} })
+    }
     return
   }
 

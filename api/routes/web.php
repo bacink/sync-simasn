@@ -11,7 +11,7 @@ Route::get('/', function () {
 Route::get('/sim-asn/archive-sync', [ArchiveSyncController::class, 'index'])
     ->name('sim-asn.archive-sync.index');
 
-// SIM-ASN OAuth
+// SIM-ASN OAuth — initiate and callback (frontend-redirect flow)
 Route::get('/auth/sim-asn', [SimAsnCallbackController::class, 'initiate'])
     ->name('auth.sim-asn');
 Route::get('/callback/sim-asn', [SimAsnCallbackController::class, 'callback'])

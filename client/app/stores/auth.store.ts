@@ -19,12 +19,19 @@ export const useAuthStore = defineStore("auth", {
   }),
 
   getters: {
-    userRole: (state): string | null => state.user?.role || state.user?.roles?.[0] || null,
-    isAdmin: (state) => state.user?.role === "admin" || state.user?.roles?.includes("admin"),
-    isVerifikator: (state) => state.user?.role === "verifikator" || state.user?.roles?.includes("verifikator"),
-    isOperator: (state) => state.user?.role === "operator" || state.user?.roles?.includes("operator"),
+    userRole: (state): string | null =>
+      state.user?.role || state.user?.roles?.[0] || null,
+    isAdmin: (state) =>
+      state.user?.role === "admin" || state.user?.roles?.includes("admin"),
+    isVerifikator: (state) =>
+      state.user?.role === "verifikator" ||
+      state.user?.roles?.includes("verifikator"),
+    isOperator: (state) =>
+      state.user?.role === "operator" ||
+      state.user?.roles?.includes("operator"),
     isLoggedIn: (state) => state.isAuthenticated,
-    isSimAsnAuthenticated: (state) => state.user?.is_sim_asn_authenticated ?? false,
+    isSimAsnAuthenticated: (state) =>
+      state.user?.is_sim_asn_authenticated ?? false,
     canRegisterFromOAuth: (state) => !!state.oauthRegistrationPayload,
   },
 

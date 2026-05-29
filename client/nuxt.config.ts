@@ -30,4 +30,13 @@ export default defineNuxtConfig({
       enabled: true,
     },
   },
+
+  vite: {
+    server: {
+      allowedHosts: ["localhost", "kgb.test"],
+      watch: {
+        usePolling: true,
+      },
+    },
+  },
 });

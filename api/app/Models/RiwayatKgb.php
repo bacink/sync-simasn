@@ -6,6 +6,7 @@ use App\Enums\KgbStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -86,6 +87,11 @@ class RiwayatKgb extends Model
         return $this->belongsTo(RefGajiAsn::class, 'ref_gaji_id');
     }
 
+    public function kgbApprovals(): HasMany
+    {
+        return $this->hasMany(KgbApproval::class, 'riwayat_kgb_id');
+    }
+
     /**
      * Check if the current status can transition to the given status.
      */
@@ -137,7 +143,7 @@ class RiwayatKgb extends Model
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('pegawai_nama', 'like', "%{$search}%")
-                  ->orWhere('pegawai_nip', 'like', "%{$search}%");
+                    ->orWhere('pegawai_nip', 'like', "%{$search}%");
             });
         }
     }

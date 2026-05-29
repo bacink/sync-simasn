@@ -26,6 +26,7 @@ class RefPeraturan extends Model
         return [
             'tahun' => 'integer',
             'effective_date' => 'date',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -47,7 +48,7 @@ class RefPeraturan extends Model
 
     public function scopeActive($query)
     {
-        return $query->where('effective_date', '<=', now())
+        return $query->where('is_active', true)
             ->orderByDesc('effective_date');
     }
 }

@@ -21,7 +21,7 @@ class PmkTest extends TestCase
 
     public function test_pmk_list_returns_empty_for_no_records(): void
     {
-        $response = $this->actingAs($this->user)->getJson('/api/pmk');
+        $response = $this->actingAs($this->user)->getJson('/api/v1/pmk');
 
         $response->assertStatus(200)
             ->assertJsonStructure(['data']);
@@ -29,7 +29,7 @@ class PmkTest extends TestCase
 
     public function test_pmk_list_requires_authentication(): void
     {
-        $response = $this->getJson('/api/pmk');
+        $response = $this->getJson('/api/v1/pmk');
 
         $response->assertStatus(401);
     }
@@ -38,7 +38,7 @@ class PmkTest extends TestCase
     {
         RiwayatPmk::factory()->count(3)->create();
 
-        $response = $this->actingAs($this->user)->getJson('/api/pmk');
+        $response = $this->actingAs($this->user)->getJson('/api/v1/pmk');
 
         $response->assertStatus(200);
         $this->assertCount(3, $response->json('data'));
@@ -84,7 +84,7 @@ class PmkTest extends TestCase
             'dasar_pmk' => 'Peraturan Bersama BKN dan KemenPAN-RB',
         ];
 
-        $response = $this->actingAs($this->user)->postJson('/api/pmk', $payload);
+        $response = $this->actingAs($this->user)->postJson('/api/v1/pmk', $payload);
 
         $response->assertStatus(201)
             ->assertJsonPath('data.nip', '98765432109876543210')
@@ -99,7 +99,7 @@ class PmkTest extends TestCase
 
     public function test_pmk_store_validates_required_fields(): void
     {
-        $response = $this->actingAs($this->user)->postJson('/api/pmk', []);
+        $response = $this->actingAs($this->user)->postJson('/api/v1/pmk', []);
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors([
@@ -127,7 +127,7 @@ class PmkTest extends TestCase
             'tanggal_sk' => '2024-01-01',
         ];
 
-        $response = $this->actingAs($this->user)->postJson('/api/pmk', $payload);
+        $response = $this->actingAs($this->user)->postJson('/api/v1/pmk', $payload);
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['masa_kerja_lama_bulan']);

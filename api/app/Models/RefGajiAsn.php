@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -24,10 +23,9 @@ class RefGajiAsn extends Model
      */
     protected $fillable = [
         'golongan',
-        'masa_kerja_tahun',
+        'masa_kerja',
         'gaji',
-        'peraturan',
-        'is_active',
+        'peraturan_id',
     ];
 
     /**
@@ -39,16 +37,12 @@ class RefGajiAsn extends Model
     {
         return [
             'gaji' => 'decimal:0',
-            'is_active' => 'boolean',
         ];
     }
 
-    /**
-     * Scope a query to only include active records.
-     */
-    public function scopeActive(Builder $query): Builder
+    public function peraturan()
     {
-        return $query->where('is_active', true);
+        return $this->belongsTo(RefPeraturan::class, 'peraturan_id');
     }
 
     /**
@@ -58,7 +52,7 @@ class RefGajiAsn extends Model
     {
         return static::active()
             ->where('golongan', $golongan)
-            ->where('masa_kerja_tahun', $masaKerjaTahun)
+            ->where('masa_kerja', $masaKerjaTahun)
             ->first();
     }
 }

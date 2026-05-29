@@ -14,11 +14,11 @@ class GajiController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = RefGajiAsn::query();
-
-        if ($request->boolean('is_active', true)) {
-            $query->active();
-        }
+        $query = RefGajiAsn::query()
+            ->with('peraturan')
+            ->whereHas('peraturan', function ($q) {
+                $q->active();
+            });
 
         if ($request->has('golongan')) {
             $query->where('golongan', $request->string('golongan'));
@@ -26,18 +26,17 @@ class GajiController extends Controller
 
         $sortField = $request->string('sort', 'golongan');
         $sortDir = $request->string('dir', 'asc');
-        $query->orderBy('golongan', $sortDir->value())->orderBy('masa_kerja_tahun', $sortDir->value());
+        $query->orderBy('golongan', $sortDir->value())->orderBy('masa_kerja', $sortDir->value());
 
         $perPage = $request->integer('per_page', 15);
         $paginator = $query->paginate($perPage);
 
-        $items = collect($paginator->items())->map(fn ($r) => [
+        $items = collect($paginator->items())->map(fn($r) => [
             'id' => $r->id,
             'golongan' => $r->golongan,
-            'masa_kerja_tahun' => $r->masa_kerja_tahun,
+            'masa_kerja' => $r->masa_kerja,
             'gaji' => (int) $r->gaji,
             'peraturan' => $r->peraturan,
-            'is_active' => $r->is_active,
             'created_at' => $r->created_at->toIso8601String(),
         ])->toArray();
 

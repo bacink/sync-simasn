@@ -16,6 +16,7 @@ class RefPeraturanSeeder extends Seeder
                 'tahun' => 2019,
                 'effective_date' => '2019-01-01',
                 'nama' => 'PP 17 Tahun 2019 tentang Perubahan Kedelapan Belas atas PP 6 Tahun 1983',
+                'is_active' => true,
             ],
             [
                 'jenis' => 'PP',
@@ -23,6 +24,7 @@ class RefPeraturanSeeder extends Seeder
                 'tahun' => 2023,
                 'effective_date' => '2023-05-01',
                 'nama' => 'PP 11 Tahun 2023 tentang Perubahan atas PP 6 Tahun 1983 (Perbaikan Gaji)',
+                'is_active' => true,
             ],
             [
                 'jenis' => 'PP',
@@ -30,6 +32,7 @@ class RefPeraturanSeeder extends Seeder
                 'tahun' => 2024,
                 'effective_date' => '2024-01-01',
                 'nama' => 'PP 8 Tahun 2024 tentang Perubahan Kedelapan atas PP 6 Tahun 1983',
+                'is_active' => true,
             ],
             [
                 'jenis' => 'PERPRES',
@@ -37,6 +40,7 @@ class RefPeraturanSeeder extends Seeder
                 'tahun' => 2024,
                 'effective_date' => '2024-06-01',
                 'nama' => 'Peraturan Presiden Nomor 11 Tahun 2024 tentang Penyesuaian Gaji, Pensiun, dan Tunjangan',
+                'is_active' => true,
             ],
             [
                 'jenis' => 'KEP',
@@ -44,6 +48,7 @@ class RefPeraturanSeeder extends Seeder
                 'tahun' => 2024,
                 'effective_date' => '2024-06-01',
                 'nama' => 'Keputusan Presiden tentang Kenaikan Gaji Berkala',
+                'is_active' => true,
             ],
             [
                 'jenis' => 'PP',
@@ -51,6 +56,7 @@ class RefPeraturanSeeder extends Seeder
                 'tahun' => 2025,
                 'effective_date' => '2025-01-01',
                 'nama' => 'PP 2 Tahun 2025 tentang Penyesuaian Gaji PNS',
+                'is_active' => true, // Future regulation, not active yet
             ],
         ];
 

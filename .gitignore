@@ -1,1 +1,18 @@
 .worktrees/
+# AI-generated local files that should never be committed
+/.claude/
+/.remember/
+/CLAUDE.md
+/GEMINI.md
+/AGENTS.md
+/opencode.json
+
+# AI-generated instructions, prompts, and brainstorming files
+**/*brainstorm*
+**/*.ai.md
+**/*.instructions.md
+**/*.prompt.md
+**/*.agent.md
+
+# Generated local agent directories
+**/.agents/

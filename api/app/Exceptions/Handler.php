@@ -2,12 +2,12 @@
 
 namespace App\Exceptions;
 
+use App\Helpers\ApiResponse;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
-use App\Helpers\ApiResponse;
 
 class Handler extends ExceptionHandler
 {
@@ -31,7 +31,7 @@ class Handler extends ExceptionHandler
             return ApiResponse::error(
                 code: 'VALIDATION_ERROR',
                 message: 'Validasi request gagal',
-                details: $e->errors(),
+                details: ['errors' => $e->errors()],
                 httpStatus: 422
             );
         });
@@ -45,7 +45,10 @@ class Handler extends ExceptionHandler
         });
 
         $this->renderable(function (Throwable $e) {
-            if (config('app.debug')) return;
+            if (config('app.debug')) {
+                return;
+            }
+
             return ApiResponse::error(
                 code: 'SYSTEM_ERROR',
                 message: 'Terjadi kesalahan sistem',

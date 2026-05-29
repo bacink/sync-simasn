@@ -14,7 +14,6 @@ return new class extends Migration
             $table->string('nama', 255)->nullable();
             $table->string('jenis_dokumen', 100)->index(); // e.g. ijazah, sk_golongan
             $table->string('file_name', 255);
-            $table->string('file_path', 500)->nullable();  // relative path on disk: arsip/{jenis}/{nip}/{file}
             $table->string('status', 20)->default('pending')->index(); // pending|success|failed
             $table->unsignedTinyInteger('attempt_count')->default(0);
             $table->timestamp('last_attempt_at')->nullable();

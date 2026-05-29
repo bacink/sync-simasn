@@ -53,7 +53,7 @@ class KgbWorkflowTest extends TestCase
 
     public function test_kgb_list_returns_empty_for_no_records(): void
     {
-        $response = $this->actingAs($this->user)->getJson('/api/kgb');
+        $response = $this->actingAs($this->user)->getJson('/api/v1/kgb');
 
         $response->assertStatus(200)
             ->assertJsonStructure(['data']);
@@ -61,7 +61,7 @@ class KgbWorkflowTest extends TestCase
 
     public function test_kgb_list_requires_authentication(): void
     {
-        $response = $this->getJson('/api/kgb');
+        $response = $this->getJson('/api/v1/kgb');
 
         $response->assertStatus(401);
     }

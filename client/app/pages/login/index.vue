@@ -18,7 +18,15 @@ const error = ref<string | null>(null)
 
 onMounted(() => {
   const accessToken = route.query.access_token as string | undefined
+  const oauthRegister = route.query.oauth_register as string | undefined
   const errorParam = route.query.error as string | undefined
+
+  if (oauthRegister) {
+    // SIM-ASN user not found — store registration payload and redirect to registration page
+    authStore.setOAuthRegistrationPayload(oauthRegister)
+    router.replace('/auth/register')
+    return
+  }
 
   if (accessToken) {
     authStore.loginWithToken(accessToken).then(() => {

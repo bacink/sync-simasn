@@ -11,6 +11,8 @@ use SIM_ASN\Laravel\Facades\OauthClient;
 
 class SimAsnCallbackController extends Controller
 {
+    private const TOKEN_NAME = 'sim-asn-token';
+
     /**
      * Step 1: Redirect to SIM-ASN authorization page.
      */
@@ -61,7 +63,8 @@ class SimAsnCallbackController extends Controller
                 return redirect()->to($returnTo.'?oauth_register='.urlencode(base64_encode($payload)));
             }
 
-            $sanctumToken = DB::transaction(function () use ($user, $accessToken) {
+            $newToken = null;
+            DB::transaction(function () use ($user, $accessToken, &$newToken) {
                 $user->sim_asn_token = [
                     'access_token' => $accessToken->access_token,
                     'refresh_token' => $accessToken->refresh_token ?? null,
@@ -69,20 +72,21 @@ class SimAsnCallbackController extends Controller
                 ];
                 $user->save();
 
-                // Revoke all existing Sanctum tokens so only one is active at a time.
-                $user->tokens()->delete();
+                DB::afterCommit(function () use ($user) {
+                    $user->tokens()->delete();
+                });
 
-                return $user->createToken('sim-asn-token')->plainTextToken;
+                $newToken = $user->createToken(self::TOKEN_NAME)->plainTextToken;
             });
 
-            return redirect()->to($returnTo.'?access_token='.urlencode($sanctumToken));
+            return redirect()->to($returnTo.'?access_token='.urlencode($newToken));
         } catch (\Throwable $e) {
             Log::error('SIM-ASN OAuth callback failed', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return redirect()->to($returnTo.'?error='.urlencode('OAuth callback failed: '.$e->getMessage()));
+            return redirect()->to($returnTo.'?error='.urlencode('oauth_callback_failed'));
         }
     }
 }

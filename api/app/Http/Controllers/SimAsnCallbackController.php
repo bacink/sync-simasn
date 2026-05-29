@@ -26,33 +26,39 @@ class SimAsnCallbackController extends Controller
     /**
      * Handle OAuth callback from SIM-ASN.
      *
-     * OauthClient::handleCallback() calls our closure with user+token data,
-     * then returns a RedirectResponse pointing to SIM-ASN's callback URL
-     * (e.g. ?access_token=<base64-encoded-json> or ?error=<message>).
-     * We parse that redirect URL, extract the token or error, and pass the
-     * Sanctum token back to the frontend via the return_to redirect.
+     * Flow:
+     *  1. OauthClient::handleCallback() receives SIM-ASN's authorization code
+     *  2. Our closure receives (SimAsnUser, AccessToken) from the SDK
+     *  3. Find/create local user, save SIM-ASN token, issue Sanctum token
+     *  4. Redirect to frontend with Sanctum token in URL
      */
     public function callback(Request $request): RedirectResponse
     {
         $returnTo = $request->session()->pull('oauth_return_to', '/dashboard');
 
         try {
-            // handleCallback() expects a closure: fn(User $user, AccessToken $token) -> RedirectResponse.
-            // It returns a RedirectResponse with ?access_token=<base64> or ?error=.
             $result = OauthClient::handleCallback($request, function ($simAsnUser, $accessToken) use ($returnTo) {
-                // Check if user exists locally
                 $user = User::where('sim_asn_user_id', $simAsnUser->id)->first();
 
-                if (!$user) {
-                    // Encode SIM-ASN user data + token for frontend registration pre-fill.
+                if (! $user) {
+                    // User not found — encode SIM-ASN data for registration
                     $payload = base64_encode(json_encode([
-                        'user' => $simAsnUser,
-                        'token' => $accessToken,
+                        'sim_asn_user_id' => $simAsnUser->id,
+                        'name' => $simAsnUser->name ?? null,
+                        'email' => $simAsnUser->email ?? null,
+                        'access_token' => $accessToken->access_token,
+                        'refresh_token' => $accessToken->refresh_token ?? null,
+                        'expires_at' => $accessToken->expires_at ?? null,
                     ]));
-                    return redirect()->to($returnTo . '?oauth_register=' . urlencode($payload));
+
+                    Log::info('SIM-ASN user not found, redirecting to registration', [
+                        'sim_asn_user_id' => $simAsnUser->id,
+                    ]);
+
+                    return redirect()->to($returnTo.'?oauth_register='.urlencode($payload));
                 }
 
-                // Existing user — save SIM-ASN token and create Sanctum token.
+                // Existing user — update SIM-ASN token and create Sanctum token
                 $sanctumToken = DB::transaction(function () use ($user, $accessToken) {
                     $user->sim_asn_token = [
                         'access_token' => $accessToken->access_token,
@@ -61,8 +67,10 @@ class SimAsnCallbackController extends Controller
                     ];
                     $user->save();
 
-                    // Revoke all existing tokens so we only have one active session.
-                    $user->tokens()->delete();
+                    // Schedule old token deletion after commit (prevent lockout if create fails)
+                    DB::afterCommit(function () use ($user) {
+                        $user->tokens()->delete();
+                    });
 
                     return $user->createToken(self::TOKEN_NAME)->plainTextToken;
                 });
@@ -72,38 +80,18 @@ class SimAsnCallbackController extends Controller
                     'sim_asn_user_id' => $simAsnUser->id,
                 ]);
 
-                return redirect()->to($returnTo . '?access_token=' . urlencode($sanctumToken));
+                return redirect()->to($returnTo.'?access_token='.urlencode($sanctumToken));
             });
 
-            // The SDK returns a RedirectResponse to SIM-ASN's callback URL.
-            // Parse it to extract the access_token or error query param.
+            // handleCallback returns RedirectResponse — pass through
             if ($result instanceof RedirectResponse) {
-                $targetUrl = $result->getTargetUrl();
-                $parsed = parse_url($targetUrl, PHP_URL_QUERY);
-                parse_str($parsed ?? '', $query);
-
-                if (!empty($query['access_token'])) {
-                    // access_token in SIM-ASN callback URL = the redirect we built above.
-                    // Extract the actual token value (it's URL-encoded base64 or direct string).
-                    // Our redirect URL format: ?access_token=<urlencoded-sanctum-token> or
-                    // ?oauth_register=<urlencoded-base64>.
-                    // Check for our direct token first.
-                    if (str_contains($targetUrl, 'access_token=')) {
-                        return redirect()->to($targetUrl); // passthrough as-is
-                    }
-                }
-
-                if (!empty($query['error'])) {
-                    return redirect()->to($returnTo . '?error=' . urlencode($query['error']));
-                }
-
-                // Fallback: passthrough the redirect as-is.
                 return $result;
             }
 
-            // Should not reach here — handleCallback always returns RedirectResponse.
-            Log::error('SIM-ASN callback: unexpected non-redirect result', ['type' => gettype($result)]);
-            return redirect()->to($returnTo . '?error=' . urlencode('oauth_callback_failed'));
+            // Unexpected result type
+            Log::error('SIM-ASN callback: unexpected result', ['type' => gettype($result)]);
+
+            return redirect()->to($returnTo.'?error='.urlencode('oauth_callback_failed'));
 
         } catch (\Throwable $e) {
             Log::error('SIM-ASN OAuth callback failed', [
@@ -111,8 +99,7 @@ class SimAsnCallbackController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            // Don't leak internal error messages — map to user-friendly codes.
-            return redirect()->to($returnTo . '?error=' . urlencode('oauth_callback_failed'));
+            return redirect()->to($returnTo.'?error='.urlencode('oauth_callback_failed'));
         }
     }
 }

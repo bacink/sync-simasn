@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\KgbController;
 use App\Http\Controllers\Api\V1\PmkController;
 use App\Http\Controllers\Api\V1\Ref\GajiController;
+use App\Http\Controllers\Api\V1\Ref\OpdController;
 use App\Http\Controllers\Api\V1\SimAsn\PegawaiController;
 use Illuminate\Support\Facades\Route;
 
@@ -58,6 +59,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/ref/gaji/{id}', [GajiController::class, 'show']);
         Route::put('/ref/gaji/{id}', [GajiController::class, 'update']);
         Route::delete('/ref/gaji/{id}', [GajiController::class, 'destroy']);
+        Route::get('/ref/opd', [OpdController::class, 'index']);
 
         // Dashboard
         Route::get('/dashboard/stats', [DashboardController::class, 'stats']);

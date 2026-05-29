@@ -25,4 +25,10 @@ export interface User {
   email: string
   role: 'admin' | 'verifikator' | 'operator'
   avatar_url?: string
+  // SIM-ASN OAuth fields
+  sim_asn_user_id?: string | null
+  is_sim_asn_authenticated?: boolean
+  opd_id?: number | null
+  roles?: string[]
+  permissions?: string[]
 }

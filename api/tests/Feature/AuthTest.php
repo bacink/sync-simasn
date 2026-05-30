@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Opd;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -11,12 +12,16 @@ class AuthTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected ?Opd $opd = null;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         // Create role for default (web) guard
         Role::create(['name' => 'operator', 'guard_name' => 'web']);
+        // Create a default OPD for tests that need opd_id
+        $this->opd = Opd::create(['nama' => 'Dinas Pendidikan', 'kode' => '01']);
     }
 
     public function test_login_with_valid_credentials_returns_token(): void
@@ -96,10 +101,12 @@ class AuthTest extends TestCase
     public function test_register_from_sim_asn_creates_user_and_returns_token(): void
     {
         $response = $this->postJson('/api/v1/auth/register-from-sim-asn', [
-            'sim_asn_user_id' => 'sim-asn-uuid-new',
+            'sim_asn_user_id' => '550e8400-e29b-41d4-a716-446655440000',
             'name' => 'Budi Santoso',
             'email' => 'budi@example.com',
-            'opd_id' => null,
+            'opd_id' => $this->opd->id,
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
             'sim_asn_token' => [
                 'access_token' => 'sim-tok-abc',
                 'refresh_token' => 'sim-ref-xyz',
@@ -110,12 +117,12 @@ class AuthTest extends TestCase
         $response->assertStatus(201)
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.user.name', 'Budi Santoso')
-            ->assertJsonPath('data.user.sim_asn_user_id', 'sim-asn-uuid-new')
+            ->assertJsonPath('data.user.sim_asn_user_id', '550e8400-e29b-41d4-a716-446655440000')
             ->assertJsonStructure(['data' => ['token']]);
 
         $this->assertDatabaseHas('users', [
             'email' => 'budi@example.com',
-            'sim_asn_user_id' => 'sim-asn-uuid-new',
+            'sim_asn_user_id' => '550e8400-e29b-41d4-a716-446655440000',
         ]);
 
         $user = User::where('email', 'budi@example.com')->first();
@@ -124,12 +131,15 @@ class AuthTest extends TestCase
 
     public function test_register_from_sim_asn_fails_with_duplicate_sim_asn_user_id(): void
     {
-        User::factory()->create(['sim_asn_user_id' => 'existing-uuid']);
+        User::factory()->create(['sim_asn_user_id' => '550e8400-e29b-41d4-a716-446655440000']);
 
         $response = $this->postJson('/api/v1/auth/register-from-sim-asn', [
-            'sim_asn_user_id' => 'existing-uuid',
+            'sim_asn_user_id' => '550e8400-e29b-41d4-a716-446655440000',
             'name' => 'Duplicate User',
             'email' => 'dup@example.com',
+            'opd_id' => $this->opd->id,
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
             'sim_asn_token' => ['access_token' => 'tok'],
         ]);
 
@@ -142,9 +152,12 @@ class AuthTest extends TestCase
         User::factory()->create(['email' => 'taken@example.com']);
 
         $response = $this->postJson('/api/v1/auth/register-from-sim-asn', [
-            'sim_asn_user_id' => 'new-uuid',
+            'sim_asn_user_id' => '550e8400-e29b-41d4-a716-446655440001',
             'name' => 'Another User',
             'email' => 'taken@example.com',
+            'opd_id' => $this->opd->id,
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
             'sim_asn_token' => ['access_token' => 'tok'],
         ]);
 

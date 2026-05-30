@@ -1,131 +1,187 @@
 <script setup lang="ts">
-import { useAuthStore } from '~/stores/auth.store'
+import type { ApiResponse } from "~/types/api";
+import type { AuthResponse } from "~/types/api";
 
 definePageMeta({
-  layout: 'auth'
-})
+  layout: "auth",
+  middleware: [],
+});
 
-const authStore = useAuthStore()
-const router = useRouter()
+const authStore = useAuthStore();
+const api = useApi();
+const router = useRouter();
 
-const loading = ref(false)
-const error = ref<string | null>(null)
+const oauthPayload = computed(() => {
+  if (!authStore.oauthRegistrationPayload) return null;
+  try {
+    return JSON.parse(atob(authStore.oauthRegistrationPayload));
+  } catch {
+    return null;
+  }
+});
+
+// Redirect to login if no OAuth payload
+onMounted(() => {
+  if (!authStore.oauthRegistrationPayload) {
+    router.replace("/login");
+  }
+});
+
+const opds = ref<{ id: number; nama: string; kode: string | null }[]>([]);
+const loading = ref(false);
+const error = ref<string | null>(null);
 
 const form = ref({
-  name: '',
-  email: '',
-  password: '',
-  password_confirmation: '',
+  name: oauthPayload.value?.name || "",
+  email: "",
+  password: "",
+  password_confirmation: "",
   opd_id: null as number | null,
-  sim_asn_user_id: '',
-})
+});
 
-const opds = ref<Array<{ id: number; name: string }>>([])
-
-onMounted(() => {
-  const payload = authStore.oauthRegistrationPayload
-  if (payload) {
-    form.value.name = payload.name
-    form.value.email = payload.email
-    form.value.opd_id = payload.opd_id
-    form.value.sim_asn_user_id = payload.sim_asn_user_id
-    authStore.clearOAuthRegistrationPayload()
-  } else {
-    router.replace('/login')
-    return
+onMounted(async () => {
+  try {
+    const res = await api.get<ApiResponse<typeof opds.value>>("/api/v1/ref/opd");
+    opds.value = res.data;
+  } catch (e: any) {
+    error.value = "Gagal memuat daftar OPD.";
   }
-
-  // Load OPD list
-  const api = useApi()
-  api.get<{ data: Array<{ id: number; name: string }> }>('/api/v1/ref/opd')
-    .then(res => { opds.value = res.data })
-    .catch(() => {})
-})
+});
 
 async function register() {
-  if (form.value.password !== form.value.password_confirmation) {
-    error.value = 'Password dan konfirmasi password tidak cocok.'
-    return
+  if (!authStore.oauthRegistrationPayload) {
+    error.value = "Sesi pendaftaran tidak valid.";
+    return;
   }
-  loading.value = true
-  error.value = null
+
+  loading.value = true;
+  error.value = null;
+
   try {
-    const api = useApi()
-    const res = await api.post<{ data: { user: any; token: string } }>('/api/v1/auth/register-from-sim-asn', {
-      name: form.value.name,
-      email: form.value.email,
-      password: form.value.password,
-      password_confirmation: form.value.password_confirmation,
-      opd_id: form.value.opd_id,
-      sim_asn_user_id: form.value.sim_asn_user_id,
-      sim_asn_token: authStore.oauthRegistrationPayload?.sim_asn_token || { access_token: '' },
-    })
-    authStore.user = res.data.user
-    authStore.loginWithToken(res.data.token)
-    router.push('/dashboard')
+    const payload = JSON.parse(atob(authStore.oauthRegistrationPayload));
+
+    const res = await api.post<ApiResponse<AuthResponse>>(
+      "/api/v1/auth/register-from-sim-asn",
+      {
+        name: form.value.name,
+        email: form.value.email,
+        password: form.value.password,
+        password_confirmation: form.value.password_confirmation,
+        opd_id: form.value.opd_id,
+        sim_asn_user_id: payload.sim_asn_user_id,
+        sim_asn_token: payload.sim_asn_token,
+      },
+    );
+
+    authStore.clearOAuthRegistrationPayload();
+    await authStore.loginWithToken(res.data.token);
+    router.push("/dashboard");
   } catch (e: any) {
-    error.value = e.data?.message || 'Registrasi gagal. Silakan coba lagi.'
+    const msg = e.data?.errors
+      ? Object.values(e.data.errors).flat().join(", ")
+      : e.data?.message || "Pendaftaran gagal. Silakan coba lagi.";
+    error.value = msg;
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-50">
+  <div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
     <div class="w-full max-w-md bg-white rounded-lg shadow-md p-8">
-      <div class="text-center mb-8">
-        <h1 class="text-2xl font-bold text-gray-900">Daftar Akun</h1>
-        <p class="text-gray-500 mt-1">Lengkapi data di bawah untuk mengaktifkan akun</p>
+      <div class="text-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Pendaftaran Akun</h1>
+        <p class="text-gray-500 mt-1">
+          Lengkapi data di bawah untuk mengaktifkan akun SIM-ASN Anda
+        </p>
+      </div>
+
+      <div
+        v-if="oauthPayload"
+        class="mb-4 p-3 bg-indigo-50 text-indigo-700 text-sm rounded-lg"
+      >
+        Masuk sebagai: <strong>{{ oauthPayload.name }}</strong>
+        (NIP: {{ oauthPayload.nip }})
       </div>
 
       <form @submit.prevent="register" class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Nama</label>
-          <input v-model="form.name" type="text" readonly
-            class="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-500" />
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
+          <input
+            v-model="form.name"
+            type="text"
+            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            required
+          />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-          <input v-model="form.email" type="email" readonly
-            class="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-500" />
+          <input
+            v-model="form.email"
+            type="email"
+            placeholder="email@example.com"
+            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            required
+          />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Unit Kerja (OPD)</label>
-          <select v-model="form.opd_id"
-            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            <option :value="null" disabled>Pilih OPD</option>
-            <option v-for="opd in opds" :key="opd.id" :value="opd.id">{{ opd.name }}</option>
+          <select
+            v-model="form.opd_id"
+            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            required
+          >
+            <option :value="null" disabled>Pilih Unit Kerja</option>
+            <option v-for="opd in opds" :key="opd.id" :value="opd.id">
+              {{ opd.nama }}
+            </option>
           </select>
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-          <input v-model="form.password" type="password" placeholder="Minimal 8 karakter"
+          <input
+            v-model="form.password"
+            type="password"
             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-            minlength="8" required autocomplete="new-password" />
+            required
+            minlength="8"
+          />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password</label>
-          <input v-model="form.password_confirmation" type="password" placeholder="Ulangi password"
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Konfirmasi Password
+          </label>
+          <input
+            v-model="form.password_confirmation"
+            type="password"
             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-            minlength="8" required autocomplete="new-password" />
+            required
+            minlength="8"
+          />
         </div>
 
         <div v-if="error" class="p-3 bg-red-50 text-red-700 text-sm rounded-lg">
           {{ error }}
         </div>
 
-        <button type="submit" :disabled="loading"
-          class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium">
-          {{ loading ? 'Memuat...' : 'Daftar dan Masuk' }}
+        <button
+          type="submit"
+          :disabled="loading"
+          class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
+        >
+          {{ loading ? "Mendaftarkan..." : "Daftarkan Akun" }}
         </button>
 
-        <p class="text-center text-sm text-gray-500 mt-4">
-          <NuxtLink to="/login" class="text-indigo-600 hover:underline">Batal</NuxtLink>
+        <p class="text-center text-sm text-gray-500">
+          Sudah punya akun?
+          <NuxtLink to="/login" class="text-indigo-600 hover:underline">
+            Masuk di sini
+          </NuxtLink>
         </p>
       </form>
     </div>

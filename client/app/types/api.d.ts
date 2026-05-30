@@ -23,12 +23,16 @@ export interface User {
   id: number
   name: string
   email: string
-  role: 'admin' | 'verifikator' | 'operator'
+  opd_id: number | null
+  role?: 'admin' | 'verifikator' | 'operator'
+  roles: string[]
+  permissions: string[]
+  sim_asn_user_id: string | null
+  is_sim_asn_authenticated: boolean
   avatar_url?: string
-  // SIM-ASN OAuth fields
-  sim_asn_user_id?: string | null
-  is_sim_asn_authenticated?: boolean
-  opd_id?: number | null
-  roles?: string[]
-  permissions?: string[]
+}
+
+export interface AuthResponse {
+  user: User
+  token: string
 }

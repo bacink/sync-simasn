@@ -8,81 +8,60 @@ definePageMeta({
 const authStore = useAuthStore()
 const router = useRouter()
 
-interface OAuthData {
-  sim_asn_user_id: string
-  name: string | null
-  email: string | null
-  access_token: string
-  refresh_token: string | null
-  expires_at: string | null
-}
-
-const oauthData = ref<OAuthData | null>(null)
+const loading = ref(false)
+const error = ref<string | null>(null)
 
 const form = ref({
   name: '',
   email: '',
-  opd_id: '' as string | number | undefined,
+  password: '',
+  password_confirmation: '',
+  opd_id: null as number | null,
+  sim_asn_user_id: '',
 })
 
-const loading = ref(false)
-const error = ref<string | null>(null)
+const opds = ref<Array<{ id: number; name: string }>>([])
 
-// Load OPD list
-const opds = ref<{ id: number; nama: string }[]>([])
-
-onMounted(async () => {
-  // Check payload exists
+onMounted(() => {
   const payload = authStore.oauthRegistrationPayload
-  if (!payload) {
+  if (payload) {
+    form.value.name = payload.name
+    form.value.email = payload.email
+    form.value.opd_id = payload.opd_id
+    form.value.sim_asn_user_id = payload.sim_asn_user_id
+    authStore.clearOAuthRegistrationPayload()
+  } else {
     router.replace('/login')
     return
   }
 
-  // Decode OAuth data
-  try {
-    const decoded: OAuthData = JSON.parse(atob(payload))
-    oauthData.value = decoded
-    form.value.name = decoded.name || ''
-    form.value.email = decoded.email || ''
-  } catch {
-    error.value = 'Data registrasi tidak valid.'
-    return
-  }
-
-  // Load OPD list for dropdown
-  try {
-    const api = useApi()
-    const res = await api.get<{ data: { id: number; nama: string }[] }>('/api/v1/ref/opd')
-    opds.value = res.data
-  } catch {
-    // OPD loading failure is non-fatal — form still works
-  }
+  // Load OPD list
+  const api = useApi()
+  api.get<{ data: Array<{ id: number; name: string }> }>('/api/v1/ref/opd')
+    .then(res => { opds.value = res.data })
+    .catch(() => {})
 })
 
 async function register() {
-  if (!oauthData.value) return
-
+  if (form.value.password !== form.value.password_confirmation) {
+    error.value = 'Password dan konfirmasi password tidak cocok.'
+    return
+  }
   loading.value = true
   error.value = null
   try {
     const api = useApi()
-    const res = await api.post<{ data: { user: any; token: string } }>(
-      '/api/v1/auth/register-from-sim-asn',
-      {
-        name: form.value.name,
-        email: form.value.email,
-        opd_id: form.value.opd_id || null,
-        sim_asn_user_id: oauthData.value.sim_asn_user_id,
-        sim_asn_token: {
-          access_token: oauthData.value.access_token,
-          refresh_token: oauthData.value.refresh_token,
-          expires_at: oauthData.value.expires_at,
-        },
-      },
-    )
-    await authStore.loginWithToken(res.data.token)
-    authStore.clearOAuthRegistrationPayload()
+    const res = await api.post<{ data: { user: any; token: string } }>('/api/v1/auth/register-from-sim-asn', {
+      name: form.value.name,
+      email: form.value.email,
+      password: form.value.password,
+      password_confirmation: form.value.password_confirmation,
+      opd_id: form.value.opd_id,
+      sim_asn_user_id: form.value.sim_asn_user_id,
+      sim_asn_token: authStore.oauthRegistrationPayload?.sim_asn_token || { access_token: '' },
+    })
+    authStore.user = res.data.user
+    authStore.loginWithToken(res.data.token)
     router.push('/dashboard')
   } catch (e: any) {
     error.value = e.data?.message || 'Registrasi gagal. Silakan coba lagi.'
@@ -95,54 +74,60 @@ async function register() {
 <template>
   <div class="min-h-screen flex items-center justify-center bg-gray-50">
     <div class="w-full max-w-md bg-white rounded-lg shadow-md p-8">
-      <div class="text-center mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">Daftar Akun SIM-ASN</h1>
-        <p class="text-gray-500 mt-1">Lengkapi data untuk membuat akun</p>
-      </div>
-
-      <div v-if="error" class="p-3 bg-red-50 text-red-700 text-sm rounded-lg mb-4">
-        {{ error }}
-      </div>
-
-      <div v-if="oauthData" class="p-3 bg-blue-50 text-blue-700 text-sm rounded-lg mb-4">
-        Login sebagai: <strong>{{ oauthData.name || oauthData.sim_asn_user_id }}</strong>
+      <div class="text-center mb-8">
+        <h1 class="text-2xl font-bold text-gray-900">Daftar Akun</h1>
+        <p class="text-gray-500 mt-1">Lengkapi data di bawah untuk mengaktifkan akun</p>
       </div>
 
       <form @submit.prevent="register" class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
-          <input v-model="form.name" type="text" placeholder="Nama lengkap"
-            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-            required />
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nama</label>
+          <input v-model="form.name" type="text" readonly
+            class="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-500" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-          <input v-model="form.email" type="email" placeholder="email@example.com"
-            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-            required />
+          <input v-model="form.email" type="email" readonly
+            class="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-500" />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">OPD</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Unit Kerja (OPD)</label>
           <select v-model="form.opd_id"
             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            <option value="">Pilih OPD (opsional)</option>
-            <option v-for="opd in opds" :key="opd.id" :value="opd.id">
-              {{ opd.nama }}
-            </option>
+            <option :value="null" disabled>Pilih OPD</option>
+            <option v-for="opd in opds" :key="opd.id" :value="opd.id">{{ opd.name }}</option>
           </select>
         </div>
 
-        <button type="submit" :disabled="loading || !oauthData"
-          class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium">
-          {{ loading ? 'Mendaftarkan...' : 'Daftar dan Masuk' }}
-        </button>
-      </form>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <input v-model="form.password" type="password" placeholder="Minimal 8 karakter"
+            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            minlength="8" required autocomplete="new-password" />
+        </div>
 
-      <p class="text-center text-sm text-gray-500 mt-4">
-        <NuxtLink to="/login" class="text-indigo-600 hover:underline">Kembali ke Login</NuxtLink>
-      </p>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password</label>
+          <input v-model="form.password_confirmation" type="password" placeholder="Ulangi password"
+            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            minlength="8" required autocomplete="new-password" />
+        </div>
+
+        <div v-if="error" class="p-3 bg-red-50 text-red-700 text-sm rounded-lg">
+          {{ error }}
+        </div>
+
+        <button type="submit" :disabled="loading"
+          class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium">
+          {{ loading ? 'Memuat...' : 'Daftar dan Masuk' }}
+        </button>
+
+        <p class="text-center text-sm text-gray-500 mt-4">
+          <NuxtLink to="/login" class="text-indigo-600 hover:underline">Batal</NuxtLink>
+        </p>
+      </form>
     </div>
   </div>
 </template>

@@ -1,21 +1,24 @@
 import { defineStore } from "pinia";
-import type { User } from "~/types/api";
+import type { User, AuthResponse } from "~/types/api";
 import type { ApiResponse } from "~/types/api";
 
-interface OauthRegistrationPayload {
-  sim_asn_user_id: string;
-  name: string | null;
-  email: string | null;
-  access_token: string;
-  refresh_token: string | null;
-  expires_at: string | null;
+interface OAuthRegistrationPayload {
+  sim_asn_user_id: string
+  name: string
+  email: string
+  opd_id: number | null
+  sim_asn_token: {
+    access_token: string
+    refresh_token?: string
+    expires_at?: string | null
+  }
 }
 
 interface AuthState {
-  user: User | null;
-  token: string | null;
-  isAuthenticated: boolean;
-  oauthRegistrationPayload: OauthRegistrationPayload | null;
+  user: User | null
+  token: string | null
+  isAuthenticated: boolean
+  oauthRegistrationPayload: OAuthRegistrationPayload | null
 }
 
 export const useAuthStore = defineStore("auth", {
@@ -27,134 +30,102 @@ export const useAuthStore = defineStore("auth", {
   }),
 
   getters: {
-    userRole: (state): string | null =>
-      state.user?.roles?.[0] || state.user?.role || null,
-    isAdmin: (state) =>
-      state.user?.role === "admin" || state.user?.roles?.includes("admin"),
-    isVerifikator: (state) =>
-      state.user?.role === "verifikator" ||
-      state.user?.roles?.includes("verifikator"),
-    isOperator: (state) =>
-      state.user?.role === "operator" ||
-      state.user?.roles?.includes("operator"),
-    isLoggedIn: (state) => state.isAuthenticated,
-    isSimAsnAuthenticated: (state) =>
-      state.user?.is_sim_asn_authenticated ?? false,
-    canRegisterFromOAuth: (state) => !!state.oauthRegistrationPayload,
+    userRole: (state): string | null => {
+      if (state.user?.role) return state.user.role
+      if (state.user?.roles?.length) return state.user.roles[0]
+      return null
+    },
+    isAdmin: (state): boolean => state.user?.role === 'admin' || state.user?.roles?.includes('admin') || false,
+    isVerifikator: (state): boolean => state.user?.role === 'verifikator' || state.user?.roles?.includes('verifikator') || false,
+    isOperator: (state): boolean => state.user?.role === 'operator' || state.user?.roles?.includes('operator') || false,
+    isLoggedIn: (state): boolean => state.isAuthenticated,
+    isSimAsnAuthenticated: (state): boolean => state.user?.is_sim_asn_authenticated || false,
   },
 
   actions: {
-    _persistToken(token: string) {
+    _persistToken(token: string): void {
+      this.token = token
+      this.isAuthenticated = true
       if (import.meta.client) {
-        localStorage.setItem("auth_token", token);
+        localStorage.setItem('auth_token', token)
       }
       if (import.meta.server) {
-        useCookie("auth_token", { maxAge: 60 * 60 * 24 }).value = token;
+        useCookie('auth_token', { maxAge: 60 * 60 * 24 }).value = token
       }
     },
 
-    _clearToken() {
-      this.token = null;
+    _clearToken(): void {
+      this.token = null
+      this.isAuthenticated = false
+      this.user = null
       if (import.meta.client) {
-        localStorage.removeItem("auth_token");
+        localStorage.removeItem('auth_token')
       }
       if (import.meta.server) {
-        useCookie("auth_token").value = null;
+        useCookie('auth_token').value = null
       }
     },
 
-    _loadToken() {
-      if (import.meta.client && !this.token) {
-        this.token = localStorage.getItem("auth_token") || null;
+    _loadToken(): void {
+      if (!this.token && import.meta.client) {
+        const stored = localStorage.getItem('auth_token')
+        if (stored) {
+          this.token = stored
+        }
       }
-      return this.token;
     },
 
-    async login(credentials: {
-      email: string;
-      password: string;
-      remember_me?: boolean;
-    }): Promise<void> {
-      const api = useApi();
-      const res = await api.post<ApiResponse<{ user: User; token: string }>>(
-        "/api/v1/auth/login",
-        credentials,
-      );
-      this.user = res.data.user;
-      this.token = res.data.token;
-      this.isAuthenticated = true;
-      this.oauthRegistrationPayload = null;
-      this._persistToken(res.data.token);
+    async login(credentials: { email: string; password: string }): Promise<void> {
+      const api = useApi()
+      const res = await api.post<ApiResponse<AuthResponse>>('/api/v1/auth/login', credentials)
+      this.user = res.data.user
+      this._persistToken(res.data.token)
     },
 
     async loginWithToken(token: string): Promise<void> {
-      this.setToken(token)
+      this._persistToken(token)
       await this.fetchUser()
     },
 
     async logout(): Promise<void> {
-      const api = useApi();
+      const api = useApi()
       try {
-        await api.post("/api/v1/auth/logout");
+        await api.post('/api/v1/auth/logout')
       } catch {
         // ignore errors on logout
       }
-      this.user = null;
-      this.token = null;
-      this.isAuthenticated = false;
-      this.oauthRegistrationPayload = null;
-      if (import.meta.client) {
-        localStorage.removeItem("auth_token");
-      }
-      if (import.meta.server) {
-        useCookie("auth_token").value = null;
-      }
+      this._clearToken()
     },
 
     async fetchUser(): Promise<void> {
-      if (!this.token && import.meta.client) {
-        this.token = localStorage.getItem("auth_token") || null;
-      }
-      if (!this.token) return;
+      this._loadToken()
+      if (!this.token) return
 
-      const api = useApi();
+      const api = useApi()
       try {
-        const res = await api.get<ApiResponse<User>>("/api/v1/auth/me");
-        this.user = res.data;
-        this.isAuthenticated = true;
-      } catch (e: any) {
-        // 401 means token is invalid/expired — clear it
-        if (e.statusCode === 401) {
-          this._clearAuth();
-        }
-        throw e;
+        const res = await api.get<ApiResponse<User>>('/api/v1/auth/me')
+        this.user = res.data
+        this.isAuthenticated = true
+      } catch {
+        this._clearToken()
       }
     },
 
-    setOAuthRegistrationPayload(payload: OauthRegistrationPayload): void {
-      this.oauthRegistrationPayload = payload;
+    clearToken(): void {
+      this._clearToken()
     },
 
-    _clearAuth(): void {
-      this.user = null;
-      this.token = null;
-      this.isAuthenticated = false;
-      this.oauthRegistrationPayload = null;
-      if (import.meta.client) {
-        localStorage.removeItem("auth_token");
-      }
-      if (import.meta.server) {
-        useCookie("auth_token").value = null;
+    setOAuthRegistrationPayload(encodedPayload: string): void {
+      try {
+        const decoded = JSON.parse(atob(encodedPayload)) as OAuthRegistrationPayload
+        this.oauthRegistrationPayload = decoded
+      } catch {
+        this.oauthRegistrationPayload = null
       }
     },
 
-    clearOAuthRegistrationPayload() {
-      this.oauthRegistrationPayload = null;
-    },
-
-    setToken(token: string) {
-      this.token = token;
-      this.isAuthenticated = true;
+    clearOAuthRegistrationPayload(): void {
+      this.oauthRegistrationPayload = null
     },
   },
-});
+})

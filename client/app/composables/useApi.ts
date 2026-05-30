@@ -44,11 +44,6 @@ export function useApi() {
     })
 
     if (!response.ok) {
-      // On 401, clear token so next request doesn't send a stale token
-      if (response.status === 401) {
-        authStore._clearAuth()
-      }
-
       const error: ApiError = {
         status: response.status,
         message: response.statusText,
@@ -62,6 +57,16 @@ export function useApi() {
       }
       catch {
         // use status text as fallback
+      }
+
+      // On 401, clear token so next request doesn't send a stale token
+      if (response.status === 401) {
+        const authStore = useAuthStore()
+        authStore.token = null
+        authStore.isAuthenticated = false
+        if (import.meta.client) {
+          localStorage.removeItem('auth_token')
+        }
       }
 
       throw createError({

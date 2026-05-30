@@ -16,39 +16,40 @@ const form = ref({
 const loading = ref(false)
 const error = ref<string | null>(null)
 
-onMounted(async () => {
+onMounted(() => {
   const oauthRegister = route.query.oauth_register as string | undefined
   const accessToken = route.query.access_token as string | undefined
   const errorParam = route.query.error as string | undefined
 
+  // Priority 1: SIM-ASN OAuth new user — redirect to registration page
   if (oauthRegister) {
-    try {
-      const payload = JSON.parse(atob(oauthRegister))
-      authStore.setOAuthRegistrationPayload(payload)
-      await router.replace({ query: {} })
-      router.push('/auth/register')
-    } catch {
-      error.value = 'Data registrasi tidak valid. Silakan coba login lagi.'
-      await router.replace({ query: {} })
-    }
+    authStore.setOAuthRegistrationPayload(oauthRegister)
+    router.replace({ query: {} })
+    router.push("/auth/register")
     return
   }
 
+  // Priority 2: Existing user returning with Sanctum token
   if (accessToken) {
     authStore.loginWithToken(accessToken).then(() => {
-      router.push('/dashboard')
+      router.replace({ query: {} })
+      router.push("/dashboard")
     }).catch((e: any) => {
-      error.value = e.data?.message || 'Login gagal. Silakan coba lagi.'
+      error.value = e.data?.message || "Login gagal. Silakan coba lagi."
     })
     return
   }
 
+  // Priority 3: OAuth error from callback
   if (errorParam) {
-    if (errorParam === 'user_not_found') {
-      error.value = 'Akun Anda belum terdaftar di sistem ini'
+    if (errorParam === "user_not_found") {
+      error.value = "Akun Anda belum terdaftar di sistem ini."
+    } else if (errorParam === "oauth_denied") {
+      error.value = "Login SIM-ASN dibatalkan."
     } else {
-      error.value = 'Login SIM-ASN dibatalkan'
+      error.value = "Login SIM-ASN gagal. Silakan coba lagi."
     }
+    router.replace({ query: {} })
   }
 })
 

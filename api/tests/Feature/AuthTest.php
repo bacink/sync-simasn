@@ -177,6 +177,17 @@ class AuthTest extends TestCase
 
         // Token should be deleted from DB
         $this->assertEquals(0, $user->fresh()->tokens()->count(), 'Token should be deleted from DB after logout');
+
+        // Subsequent request with the same token should return 401
+        $meResponse = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/v1/auth/me');
+        $meResponse->assertStatus(401);
+    }
+
+    public function test_callback_route_exists(): void
+    {
+        $response = $this->get('/callback/sim-asn');
+        $response->assertStatus(302);
     }
 
     public function test_protected_routes_require_authentication(): void

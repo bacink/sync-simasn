@@ -1,8 +1,8 @@
 <script setup lang="ts">
 defineProps<{
-  title?: string
-  padding?: boolean
-}>()
+  title?: string;
+  padding?: boolean;
+}>();
 </script>
 
 <template>

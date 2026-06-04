@@ -1,43 +1,40 @@
 <script setup lang="ts">
-import { useAuthStore } from '~/stores/auth.store'
-import { useKgbStore } from '~/stores/kgb.store'
-import { usePmkStore } from '~/stores/pmk.store'
+import { useAuthStore } from "~/stores/auth.store";
+import { useKgbStore } from "~/stores/kgb.store";
+import { usePmkStore } from "~/stores/pmk.store";
 
-const authStore = useAuthStore()
-const kgbStore = useKgbStore()
-const pmkStore = usePmkStore()
+const authStore = useAuthStore();
+const kgbStore = useKgbStore();
+const pmkStore = usePmkStore();
 
 onMounted(async () => {
-  await Promise.all([
-    kgbStore.fetchList(),
-    pmkStore.fetchList()
-  ])
-})
+  await Promise.all([kgbStore.fetchList(), pmkStore.fetchList()]);
+});
 
 const stats = computed(() => ({
   totalKgb: kgbStore.items.length,
-  pendingVerification: kgbStore.items.filter(i => i.status === 'diajukan').length,
-  approvedThisMonth: kgbStore.items.filter(i => i.status === 'disetujui').length,
-  totalPmk: pmkStore.items.length
-}))
+  pendingVerification: kgbStore.items.filter((i) => i.status === "diajukan").length,
+  approvedThisMonth: kgbStore.items.filter((i) => i.status === "disetujui").length,
+  totalPmk: pmkStore.items.length,
+}));
 
 function getStatusColor(status: string) {
   const colors: Record<string, string> = {
-    draft: 'bg-gray-100 text-gray-800',
-    diajukan: 'bg-blue-100 text-blue-800',
-    diverifikasi: 'bg-yellow-100 text-yellow-800',
-    disetujui: 'bg-green-100 text-green-800',
-    ditolak: 'bg-red-100 text-red-800'
-  }
-  return colors[status] || 'bg-gray-100'
+    draft: "bg-gray-100 text-gray-800",
+    diajukan: "bg-blue-100 text-blue-800",
+    diverifikasi: "bg-yellow-100 text-yellow-800",
+    disetujui: "bg-green-100 text-green-800",
+    ditolak: "bg-red-100 text-red-800",
+  };
+  return colors[status] || "bg-gray-100";
 }
 
 function formatCurrency(val: number) {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0
-  }).format(val)
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(val);
 }
 </script>
 
@@ -46,7 +43,9 @@ function formatCurrency(val: number) {
     <div class="flex items-center justify-between mb-6">
       <div>
         <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p class="text-gray-500 text-sm mt-1">Selamat datang{{ authStore.user?.name ? `, ${authStore.user.name}` : '' }}</p>
+        <p class="text-gray-500 text-sm mt-1">
+          Selamat datang{{ authStore.user?.name ? `, ${authStore.user.name}` : "" }}
+        </p>
       </div>
     </div>
 
@@ -75,12 +74,12 @@ function formatCurrency(val: number) {
       <div class="bg-white rounded-lg shadow-sm p-6">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-semibold text-gray-900">Aktivitas KGB Terbaru</h2>
-          <NuxtLink to="/kgb" class="text-sm text-indigo-600 hover:text-indigo-800">Lihat semua</NuxtLink>
+          <NuxtLink to="/kgb" class="text-sm text-indigo-600 hover:text-indigo-800"
+            >Lihat semua</NuxtLink
+          >
         </div>
 
-        <div v-if="kgbStore.isLoading" class="p-8 text-center text-gray-500">
-          Memuat...
-        </div>
+        <div v-if="kgbStore.isLoading" class="p-8 text-center text-gray-500">Memuat...</div>
         <div v-else-if="kgbStore.items.length === 0" class="p-4 text-center text-gray-500">
           Belum ada data KGB
         </div>

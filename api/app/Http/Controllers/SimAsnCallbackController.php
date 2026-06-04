@@ -8,17 +8,19 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use SIM_ASN\Laravel\Facades\OauthClient;
+use SIM_ASN\Models\AccessToken;
+use SIM_ASN\Models\User as SimAsnUser;
 
 class SimAsnCallbackController extends Controller
 {
-    private const TOKEN_NAME = 'sim-asn-token';
-
     /**
      * Redirect browser to SIM-ASN authorization page.
      */
     public function initiate(Request $request): RedirectResponse
     {
-        $request->session()->put('oauth_return_to', $request->get('return_to', '/dashboard'));
+        // Store return_to URL in session so callback knows where to redirect after login
+        $returnTo = $request->get('return_to', $request->session()->get('oauth_return_to', '/dashboard'));
+        $request->session()->put('oauth_return_to', $returnTo);
 
         return OauthClient::requestCode('login');
     }
@@ -27,22 +29,26 @@ class SimAsnCallbackController extends Controller
      * Handle OAuth callback from SIM-ASN.
      *
      * Flow:
-     *  1. OauthClient::handleCallback() receives SIM-ASN's authorization code
-     *  2. Our closure receives (SimAsnUser, AccessToken) from the SDK
-     *  3. Find/create local user, save SIM-ASN token, issue Sanctum token
-     *  4. Redirect to frontend with Sanctum token in URL
+     *  1. Exchange code for SIM-ASN token via SDK
+     *  2. Find or register the user
+     *  3. Save SIM-ASN token to user's sim_asn_token field
+     *  4. Create a Sanctum token
+     *  5. Redirect to frontend with Sanctum token in query string
      */
     public function callback(Request $request): RedirectResponse
     {
         $returnTo = $request->session()->pull('oauth_return_to', '/dashboard');
 
         try {
-            $result = OauthClient::handleCallback($request, function ($simAsnUser, $accessToken) use ($returnTo) {
+            $result = OauthClient::handleCallback($request, function (SimAsnUser $simAsnUser, AccessToken $accessToken) use ($returnTo) {
+                // Find existing user by sim_asn_user_id
                 $user = User::where('sim_asn_user_id', $simAsnUser->id)->first();
 
                 if (! $user) {
-                    // User not found — encode SIM-ASN data for registration
-                    $payload = base64_encode(json_encode([
+                    // User not found — redirect to registration page with SIM-ASN user ID
+                    // We pass the SIM-ASN user ID as an opaque token so the frontend can
+                    // submit it to the registration endpoint.
+                    $encoded = base64_encode(json_encode([
                         'sim_asn_user_id' => $simAsnUser->id,
                         'name' => $simAsnUser->name ?? null,
                         'email' => $simAsnUser->email ?? null,
@@ -55,7 +61,7 @@ class SimAsnCallbackController extends Controller
                         'sim_asn_user_id' => $simAsnUser->id,
                     ]);
 
-                    return redirect()->to($returnTo.'?oauth_register='.urlencode($payload));
+                    return redirect()->away($returnTo.'?oauth_register='.urlencode($encoded));
                 }
 
                 // Existing user — update SIM-ASN token and create Sanctum token
@@ -67,12 +73,10 @@ class SimAsnCallbackController extends Controller
                     ];
                     $user->save();
 
-                    // Schedule old token deletion after commit (prevent lockout if create fails)
-                    DB::afterCommit(function () use ($user) {
-                        $user->tokens()->delete();
-                    });
+                    // Revoke old Sanctum tokens so we only have one active session
+                    $user->tokens()->delete();
 
-                    return $user->createToken(self::TOKEN_NAME)->plainTextToken;
+                    return $user->createToken('sim-asn-token')->plainTextToken;
                 });
 
                 Log::info('SIM-ASN login successful', [
@@ -80,26 +84,26 @@ class SimAsnCallbackController extends Controller
                     'sim_asn_user_id' => $simAsnUser->id,
                 ]);
 
-                return redirect()->to($returnTo.'?access_token='.urlencode($sanctumToken));
+                return redirect()->away($returnTo.'?access_token='.urlencode($sanctumToken));
             });
 
-            // handleCallback returns RedirectResponse — pass through
+            // handleCallback returns a RedirectResponse on success — return it directly
             if ($result instanceof RedirectResponse) {
                 return $result;
             }
 
-            // Unexpected result type
-            Log::error('SIM-ASN callback: unexpected result', ['type' => gettype($result)]);
+            // Should not reach here, but handle unexpected return type
+            Log::error('SIM-ASN callback: unexpected return type', ['type' => gettype($result)]);
 
-            return redirect()->to($returnTo.'?error='.urlencode('oauth_callback_failed'));
+            return redirect()->away($returnTo.'?error=callback_error');
 
         } catch (\Throwable $e) {
-            Log::error('SIM-ASN OAuth callback failed', [
+            Log::error('SIM-ASN callback exception', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return redirect()->to($returnTo.'?error='.urlencode('oauth_callback_failed'));
+            return redirect()->away($returnTo.'?error='.urlencode($e->getMessage()));
         }
     }
 }

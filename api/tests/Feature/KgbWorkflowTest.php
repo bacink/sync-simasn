@@ -3,8 +3,6 @@
 namespace Tests\Feature;
 
 use App\Enums\KgbStatus;
-use App\Enums\KgbType;
-use App\Models\KgbApproval;
 use App\Models\KgbSnapshot;
 use App\Models\RefGajiAsn;
 use App\Models\RefPeraturan;
@@ -18,8 +16,11 @@ class KgbWorkflowTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected RefPeraturan $peraturan;
+
     protected RefGajiAsn $gajiPnsIIIaMk0;
+
     protected RefGajiAsn $gajiPnsIIIaMk2;
 
     protected function setUp(): void
@@ -94,7 +95,7 @@ class KgbWorkflowTest extends TestCase
     public function test_kgb_submit_transitions_from_draft_to_diajukan(): void
     {
         $kgb = RiwayatKgb::factory()->create([
-            'status' => KgbStatus::Draft,
+            'status' => KgbStatus::DRAFT,
         ]);
 
         $response = $this->actingAs($this->user)->postJson("/api/kgb/{$kgb->id}/submit", [
@@ -115,7 +116,7 @@ class KgbWorkflowTest extends TestCase
     public function test_kgb_submit_rejects_non_draft_status(): void
     {
         $kgb = RiwayatKgb::factory()->create([
-            'status' => KgbStatus::Disetujui,
+            'status' => KgbStatus::DISETUJUI,
         ]);
 
         $response = $this->actingAs($this->user)->postJson("/api/kgb/{$kgb->id}/submit", [
@@ -130,7 +131,7 @@ class KgbWorkflowTest extends TestCase
     public function test_kgb_verify_transitions_from_diajukan_to_diverifikasi(): void
     {
         $kgb = RiwayatKgb::factory()->create([
-            'status' => KgbStatus::Diajukan,
+            'status' => KgbStatus::DIAJUKAN,
         ]);
 
         $response = $this->actingAs($this->user)->postJson("/api/kgb/{$kgb->id}/verify", [
@@ -149,7 +150,7 @@ class KgbWorkflowTest extends TestCase
     public function test_kgb_verify_rejects_invalid_transition(): void
     {
         $kgb = RiwayatKgb::factory()->create([
-            'status' => KgbStatus::Draft,
+            'status' => KgbStatus::DRAFT,
         ]);
 
         $response = $this->actingAs($this->user)->postJson("/api/kgb/{$kgb->id}/verify", [
@@ -163,7 +164,7 @@ class KgbWorkflowTest extends TestCase
     public function test_kgb_approve_transitions_from_diverifikasi_to_disetujui(): void
     {
         $kgb = RiwayatKgb::factory()->create([
-            'status' => KgbStatus::Diverifikasi,
+            'status' => KgbStatus::DIVERIFIKASI,
         ]);
 
         $response = $this->actingAs($this->user)->postJson("/api/kgb/{$kgb->id}/approve");
@@ -180,7 +181,7 @@ class KgbWorkflowTest extends TestCase
     public function test_kgb_approve_rejects_invalid_transition(): void
     {
         $kgb = RiwayatKgb::factory()->create([
-            'status' => KgbStatus::Draft,
+            'status' => KgbStatus::DRAFT,
         ]);
 
         $response = $this->actingAs($this->user)->postJson("/api/kgb/{$kgb->id}/approve");
@@ -192,7 +193,7 @@ class KgbWorkflowTest extends TestCase
     public function test_kgb_reject_transitions_from_diajukan_to_ditolak(): void
     {
         $kgb = RiwayatKgb::factory()->create([
-            'status' => KgbStatus::Diajukan,
+            'status' => KgbStatus::DIAJUKAN,
         ]);
 
         $response = $this->actingAs($this->user)->postJson("/api/kgb/{$kgb->id}/reject", [
@@ -211,7 +212,7 @@ class KgbWorkflowTest extends TestCase
     public function test_kgb_reject_transitions_from_diverifikasi_to_ditolak(): void
     {
         $kgb = RiwayatKgb::factory()->create([
-            'status' => KgbStatus::Diverifikasi,
+            'status' => KgbStatus::DIVERIFIKASI,
         ]);
 
         $response = $this->actingAs($this->user)->postJson("/api/kgb/{$kgb->id}/reject", [
@@ -225,7 +226,7 @@ class KgbWorkflowTest extends TestCase
     public function test_kgb_reject_fails_from_draft_status(): void
     {
         $kgb = RiwayatKgb::factory()->create([
-            'status' => KgbStatus::Draft,
+            'status' => KgbStatus::DRAFT,
         ]);
 
         $response = $this->actingAs($this->user)->postJson("/api/kgb/{$kgb->id}/reject", [
@@ -239,7 +240,7 @@ class KgbWorkflowTest extends TestCase
     public function test_kgb_workflow_full_happy_path(): void
     {
         // Draft -> Diajukan
-        $kgb = RiwayatKgb::factory()->create(['status' => KgbStatus::Draft]);
+        $kgb = RiwayatKgb::factory()->create(['status' => KgbStatus::DRAFT]);
 
         $this->actingAs($this->user)->postJson("/api/kgb/{$kgb->id}/submit", [
             'nomor_sk' => '001/SK/KGB/2026',
@@ -247,7 +248,7 @@ class KgbWorkflowTest extends TestCase
         ])->assertStatus(200);
 
         $kgb->refresh();
-        $this->assertEquals(KgbStatus::Diajukan, $kgb->status);
+        $this->assertEquals(KgbStatus::DIAJUKAN, $kgb->status);
 
         // Diajukan -> Diverifikasi
         $this->actingAs($this->user)->postJson("/api/kgb/{$kgb->id}/verify", [
@@ -255,14 +256,14 @@ class KgbWorkflowTest extends TestCase
         ])->assertStatus(200);
 
         $kgb->refresh();
-        $this->assertEquals(KgbStatus::Diverifikasi, $kgb->status);
+        $this->assertEquals(KgbStatus::DIVERIFIKASI, $kgb->status);
 
         // Diverifikasi -> Disetujui
         $this->actingAs($this->user)->postJson("/api/kgb/{$kgb->id}/approve")
             ->assertStatus(200);
 
         $kgb->refresh();
-        $this->assertEquals(KgbStatus::Disetujui, $kgb->status);
+        $this->assertEquals(KgbStatus::DISETUJUI, $kgb->status);
 
         // Approval records created
         $this->assertDatabaseCount('kgb_approvals', 3);
@@ -270,7 +271,7 @@ class KgbWorkflowTest extends TestCase
 
     public function test_kgb_submit_creates_approval_record(): void
     {
-        $kgb = RiwayatKgb::factory()->create(['status' => KgbStatus::Draft]);
+        $kgb = RiwayatKgb::factory()->create(['status' => KgbStatus::DRAFT]);
 
         $this->actingAs($this->user)->postJson("/api/kgb/{$kgb->id}/submit", [
             'nomor_sk' => '001/SK/KGB/2026',
@@ -286,7 +287,7 @@ class KgbWorkflowTest extends TestCase
 
     public function test_kgb_workflow_audit_log_created_on_each_transition(): void
     {
-        $kgb = RiwayatKgb::factory()->create(['status' => KgbStatus::Draft]);
+        $kgb = RiwayatKgb::factory()->create(['status' => KgbStatus::DRAFT]);
 
         $this->actingAs($this->user)->postJson("/api/kgb/{$kgb->id}/submit", [
             'nomor_sk' => '001/SK/KGB/2026',
@@ -302,9 +303,9 @@ class KgbWorkflowTest extends TestCase
 
     public function test_kgb_list_filters_by_status(): void
     {
-        RiwayatKgb::factory()->create(['status' => KgbStatus::Draft]);
-        RiwayatKgb::factory()->create(['status' => KgbStatus::Disetujui]);
-        RiwayatKgb::factory()->create(['status' => KgbStatus::Disetujui]);
+        RiwayatKgb::factory()->create(['status' => KgbStatus::DRAFT]);
+        RiwayatKgb::factory()->create(['status' => KgbStatus::DISETUJUI]);
+        RiwayatKgb::factory()->create(['status' => KgbStatus::DISETUJUI]);
 
         $response = $this->actingAs($this->user)->getJson('/api/kgb?status=disetujui');
 
@@ -315,8 +316,8 @@ class KgbWorkflowTest extends TestCase
     public function test_kgb_list_filters_by_nip(): void
     {
         $targetNip = '12345678901234567890';
-        $kgb1 = RiwayatKgb::factory()->create(['status' => KgbStatus::Draft]);
-        $kgb2 = RiwayatKgb::factory()->create(['status' => KgbStatus::Draft]);
+        $kgb1 = RiwayatKgb::factory()->create(['status' => KgbStatus::DRAFT]);
+        $kgb2 = RiwayatKgb::factory()->create(['status' => KgbStatus::DRAFT]);
 
         KgbSnapshot::factory()->create(['riwayat_kgb_id' => $kgb1, 'gaji_pokok' => 5000000, 'data_json' => ['nip' => $targetNip]]);
         KgbSnapshot::factory()->create(['riwayat_kgb_id' => $kgb2, 'gaji_pokok' => 6000000, 'data_json' => ['nip' => '99999999999999999999']]);

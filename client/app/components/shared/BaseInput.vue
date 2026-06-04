@@ -1,19 +1,19 @@
 <script setup lang="ts">
 defineProps<{
-  modelValue: string | number
-  label?: string
-  type?: string
-  placeholder?: string
-  error?: string
-  required?: boolean
-  disabled?: boolean
-  name?: string
-  id?: string
-}>()
+  modelValue: string | number;
+  label?: string;
+  type?: string;
+  placeholder?: string;
+  error?: string;
+  required?: boolean;
+  disabled?: boolean;
+  name?: string;
+  id?: string;
+}>();
 
 defineEmits<{
-  'update:modelValue': [value: string]
-}>()
+  "update:modelValue": [value: string];
+}>();
 </script>
 
 <template>
@@ -35,7 +35,7 @@ defineEmits<{
         error
           ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
           : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500',
-        disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'
+        disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white',
       ]"
     />
     <span v-if="error" class="text-xs text-red-600">{{ error }}</span>

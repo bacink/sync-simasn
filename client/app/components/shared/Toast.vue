@@ -1,23 +1,23 @@
 <script setup lang="ts">
 interface Toast {
-  id: string
-  message: string
-  type: 'success' | 'error' | 'info' | 'warning'
+  id: string;
+  message: string;
+  type: "success" | "error" | "info" | "warning";
 }
 
-const toasts = ref<Toast[]>([])
+const toasts = ref<Toast[]>([]);
 
-function add(message: string, type: Toast['type'] = 'info') {
-  const id = Date.now().toString()
-  toasts.value.push({ id, message, type })
-  setTimeout(() => remove(id), 4000)
+function add(message: string, type: Toast["type"] = "info") {
+  const id = Date.now().toString();
+  toasts.value.push({ id, message, type });
+  setTimeout(() => remove(id), 4000);
 }
 
 function remove(id: string) {
-  toasts.value = toasts.value.filter(t => t.id !== id)
+  toasts.value = toasts.value.filter((t) => t.id !== id);
 }
 
-defineExpose({ add })
+defineExpose({ add });
 </script>
 
 <template>
@@ -33,7 +33,7 @@ defineExpose({ add })
             'bg-red-50 text-red-800 border border-red-200': toast.type === 'error',
             'bg-blue-50 text-blue-800 border border-blue-200': toast.type === 'info',
             'bg-yellow-50 text-yellow-800 border border-yellow-200': toast.type === 'warning',
-          }
+          },
         ]"
       >
         <span>{{ toast.message }}</span>

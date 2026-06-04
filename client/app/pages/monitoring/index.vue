@@ -1,29 +1,26 @@
 <script setup lang="ts">
-const kgbStore = useKgbStore()
-const pmkStore = usePmkStore()
+const kgbStore = useKgbStore();
+const pmkStore = usePmkStore();
 
 onMounted(async () => {
-  await Promise.all([
-    kgbStore.fetchAll(),
-    pmkStore.fetchAll()
-  ])
-})
+  await Promise.all([kgbStore.fetchAll(), pmkStore.fetchAll()]);
+});
 
 const stats = computed(() => ({
   kgb: {
-    draft: kgbStore.items.filter(i => i.status === 'draft').length,
-    diajukan: kgbStore.items.filter(i => i.status === 'diajukan').length,
-    diverifikasi: kgbStore.items.filter(i => i.status === 'diverifikasi').length,
-    disetujui: kgbStore.items.filter(i => i.status === 'disetujui').length,
-    ditolak: kgbStore.items.filter(i => i.status === 'ditolak').length
+    draft: kgbStore.items.filter((i) => i.status === "draft").length,
+    diajukan: kgbStore.items.filter((i) => i.status === "diajukan").length,
+    diverifikasi: kgbStore.items.filter((i) => i.status === "diverifikasi").length,
+    disetujui: kgbStore.items.filter((i) => i.status === "disetujui").length,
+    ditolak: kgbStore.items.filter((i) => i.status === "ditolak").length,
   },
   pmk: {
-    draft: pmkStore.items.filter(i => i.status === 'draft').length,
-    diajukan: pmkStore.items.filter(i => i.status === 'diajukan').length,
-    diverifikasi: pmkStore.items.filter(i => i.status === 'diverifikasi').length,
-    disetujui: pmkStore.items.filter(i => i.status === 'disetujui').length
-  }
-}))
+    draft: pmkStore.items.filter((i) => i.status === "draft").length,
+    diajukan: pmkStore.items.filter((i) => i.status === "diajukan").length,
+    diverifikasi: pmkStore.items.filter((i) => i.status === "diverifikasi").length,
+    disetujui: pmkStore.items.filter((i) => i.status === "disetujui").length,
+  },
+}));
 </script>
 
 <template>

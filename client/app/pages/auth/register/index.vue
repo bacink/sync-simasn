@@ -60,18 +60,15 @@ async function register() {
   try {
     const payload = JSON.parse(atob(authStore.oauthRegistrationPayload));
 
-    const res = await api.post<ApiResponse<AuthResponse>>(
-      "/api/v1/auth/register-from-sim-asn",
-      {
-        name: form.value.name,
-        email: form.value.email,
-        password: form.value.password,
-        password_confirmation: form.value.password_confirmation,
-        opd_id: form.value.opd_id,
-        sim_asn_user_id: payload.sim_asn_user_id,
-        sim_asn_token: payload.sim_asn_token,
-      },
-    );
+    const res = await api.post<ApiResponse<AuthResponse>>("/api/v1/auth/register-from-sim-asn", {
+      name: form.value.name,
+      email: form.value.email,
+      password: form.value.password,
+      password_confirmation: form.value.password_confirmation,
+      opd_id: form.value.opd_id,
+      sim_asn_user_id: payload.sim_asn_user_id,
+      sim_asn_token: payload.sim_asn_token,
+    });
 
     authStore.clearOAuthRegistrationPayload();
     await authStore.loginWithToken(res.data.token);
@@ -97,12 +94,8 @@ async function register() {
         </p>
       </div>
 
-      <div
-        v-if="oauthPayload"
-        class="mb-4 p-3 bg-indigo-50 text-indigo-700 text-sm rounded-lg"
-      >
-        Masuk sebagai: <strong>{{ oauthPayload.name }}</strong>
-        (NIP: {{ oauthPayload.nip }})
+      <div v-if="oauthPayload" class="mb-4 p-3 bg-indigo-50 text-indigo-700 text-sm rounded-lg">
+        Masuk sebagai: <strong>{{ oauthPayload.name }}</strong> (NIP: {{ oauthPayload.nip }})
       </div>
 
       <form @submit.prevent="register" class="space-y-4">
@@ -153,9 +146,7 @@ async function register() {
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Konfirmasi Password
-          </label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"> Konfirmasi Password </label>
           <input
             v-model="form.password_confirmation"
             type="password"
@@ -179,9 +170,7 @@ async function register() {
 
         <p class="text-center text-sm text-gray-500">
           Sudah punya akun?
-          <NuxtLink to="/login" class="text-indigo-600 hover:underline">
-            Masuk di sini
-          </NuxtLink>
+          <NuxtLink to="/login" class="text-indigo-600 hover:underline"> Masuk di sini </NuxtLink>
         </p>
       </form>
     </div>

@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { useAuthStore } from '~/stores/auth.store'
+import { useAuthStore } from "~/stores/auth.store";
 
-const authStore = useAuthStore()
-const route = useRoute()
+const authStore = useAuthStore();
+const route = useRoute();
 
 const navItems = [
-  { label: 'Dashboard', to: '/dashboard', icon: '📊' },
-  { label: 'KGB', to: '/kgb', icon: '📋' },
-  { label: 'PMK', to: '/pmk', icon: '📄' },
-  { label: 'Referensi Gaji', to: '/ref-gaji', icon: '💰' },
-]
+  { label: "Dashboard", to: "/dashboard", icon: "📊" },
+  { label: "KGB", to: "/kgb", icon: "📋" },
+  { label: "PMK", to: "/pmk", icon: "📄" },
+  { label: "Referensi Gaji", to: "/ref-gaji", icon: "💰" },
+];
 
 function isActive(path: string) {
-  return route.path === path || route.path.startsWith(path + '/')
+  return route.path === path || route.path.startsWith(path + "/");
 }
 </script>
 
@@ -28,9 +28,7 @@ function isActive(path: string) {
         :to="item.to"
         :class="[
           'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors',
-          isActive(item.to)
-            ? 'bg-indigo-50 text-indigo-700'
-            : 'text-gray-600 hover:bg-gray-100'
+          isActive(item.to) ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-100',
         ]"
       >
         <span class="text-base">{{ item.icon }}</span>

@@ -1,32 +1,30 @@
 <script setup lang="ts">
-import { pmkService } from '~/services/pmk.service'
-import type { PmkFormData } from '~/types/pmk'
+import { pmkService } from "~/services/pmk.service";
+import type { PmkFormData } from "~/types/pmk";
 
-const router = useRouter()
+const router = useRouter();
 
 const form = ref<PmkFormData>({
-  nip: '',
+  nip: "",
   masa_kerja_baru_tahun: 0,
   masa_kerja_baru_bulan: 0,
-  dasar_pmk: ''
-})
+  dasar_pmk: "",
+});
 
-const loading = ref(false)
-const error = ref<string | null>(null)
-const file = ref<File | null>(null)
+const loading = ref(false);
+const error = ref<string | null>(null);
+const file = ref<File | null>(null);
 
 async function submit() {
-  loading.value = true
-  error.value = null
+  loading.value = true;
+  error.value = null;
   try {
-    await pmkService.createPmk(form.value)
-    router.push('/pmk')
-  }
-  catch (e: any) {
-    error.value = e.data?.message || 'Gagal membuat PMK'
-  }
-  finally {
-    loading.value = false
+    await pmkService.createPmk(form.value);
+    router.push("/pmk");
+  } catch (e: any) {
+    error.value = e.data?.message || "Gagal membuat PMK";
+  } finally {
+    loading.value = false;
   }
 }
 </script>
@@ -52,7 +50,9 @@ async function submit() {
         <!-- Masa Kerja Baru -->
         <div class="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Masa Kerja Baru (Tahun)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2"
+              >Masa Kerja Baru (Tahun)</label
+            >
             <input
               v-model.number="form.masa_kerja_baru_tahun"
               type="number"
@@ -63,7 +63,9 @@ async function submit() {
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Masa Kerja Baru (Bulan)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2"
+              >Masa Kerja Baru (Bulan)</label
+            >
             <input
               v-model.number="form.masa_kerja_baru_bulan"
               type="number"
@@ -99,9 +101,12 @@ async function submit() {
             :disabled="loading"
             class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
           >
-            {{ loading ? 'Menyimpan...' : 'Simpan' }}
+            {{ loading ? "Menyimpan..." : "Simpan" }}
           </button>
-          <NuxtLink to="/pmk" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+          <NuxtLink
+            to="/pmk"
+            class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+          >
             Batal
           </NuxtLink>
         </div>

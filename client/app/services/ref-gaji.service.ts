@@ -44,9 +44,7 @@ export interface RefGajiListData {
 const api = useApi();
 
 export const refGajiService = {
-  async fetchList(
-    jenisAsn: "pns" | "pppk",
-  ): Promise<ApiResponse<RefGajiListData>> {
+  async fetchList(jenisAsn: "pns" | "pppk"): Promise<ApiResponse<RefGajiListData>> {
     return api.get<ApiResponse<RefGajiListData>>("/api/v1/ref/gaji", {
       jenis_asn: jenisAsn,
     });

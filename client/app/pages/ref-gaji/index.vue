@@ -1,42 +1,43 @@
 <script setup lang="ts">
-import { useRefGajiStore } from '~/stores/ref-gaji.store'
+import { useRefGajiStore } from "~/stores/ref-gaji.store";
 
-const store = useRefGajiStore()
+const store = useRefGajiStore();
 
 onMounted(() => {
-  store.fetchList('pns')
-})
+  store.fetchList("pns");
+});
 
-const activeTab = computed(() => store.activeTab)
+const activeTab = computed(() => store.activeTab);
 
-function switchTab(tab: 'pns' | 'pppk') {
-  store.setTab(tab)
+function switchTab(tab: "pns" | "pppk") {
+  store.setTab(tab);
 }
 
 function formatCurrency(val: number) {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0
-  }).format(val)
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(val);
 }
 
-const searchGolongan = ref('')
-const searchMk = ref('')
+const searchGolongan = ref("");
+const searchMk = ref("");
 
 const filteredGrouped = computed(() => {
-  const groups: Record<string, typeof store.groupedByGolongan[string]> = {}
+  const groups: Record<string, (typeof store.groupedByGolongan)[string]> = {};
   for (const [key, items] of Object.entries(store.groupedByGolongan)) {
-    if (searchGolongan.value && !key.toLowerCase().includes(searchGolongan.value.toLowerCase())) continue
-    const filtered = items.filter(i =>
-      !searchMk.value || String(i.masa_kerja).includes(searchMk.value)
-    )
-    if (filtered.length) groups[key] = filtered
+    if (searchGolongan.value && !key.toLowerCase().includes(searchGolongan.value.toLowerCase()))
+      continue;
+    const filtered = items.filter(
+      (i) => !searchMk.value || String(i.masa_kerja).includes(searchMk.value),
+    );
+    if (filtered.length) groups[key] = filtered;
   }
-  return groups
-})
+  return groups;
+});
 
-const sortedKeys = computed(() => Object.keys(filteredGrouped.value).sort())
+const sortedKeys = computed(() => Object.keys(filteredGrouped.value).sort());
 </script>
 
 <template>
@@ -53,7 +54,7 @@ const sortedKeys = computed(() => Object.keys(filteredGrouped.value).sort())
           'px-4 py-2 rounded-lg font-medium text-sm transition-colors',
           activeTab === 'pns'
             ? 'bg-indigo-600 text-white'
-            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200',
         ]"
       >
         PNS
@@ -64,7 +65,7 @@ const sortedKeys = computed(() => Object.keys(filteredGrouped.value).sort())
           'px-4 py-2 rounded-lg font-medium text-sm transition-colors',
           activeTab === 'pppk'
             ? 'bg-indigo-600 text-white'
-            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200',
         ]"
       >
         PPPK
@@ -73,8 +74,10 @@ const sortedKeys = computed(() => Object.keys(filteredGrouped.value).sort())
 
     <!-- Info -->
     <div v-if="store.peraturan.length" class="mb-4 text-sm text-gray-500">
-      Berlaku suruh: <span class="font-medium text-gray-700">{{ store.peraturan[0].nama }}</span>
-      ({{ store.peraturan[0].effective_date }})
+      Berlaku suruh:
+      <span class="font-medium text-gray-700">{{ store.peraturan[0].nama }}</span> ({{
+        store.peraturan[0].effective_date
+      }})
     </div>
 
     <!-- Search -->
@@ -101,9 +104,7 @@ const sortedKeys = computed(() => Object.keys(filteredGrouped.value).sort())
     </div>
 
     <!-- Loading -->
-    <div v-if="store.loading" class="p-12 text-center text-gray-500">
-      Memuat data...
-    </div>
+    <div v-if="store.loading" class="p-12 text-center text-gray-500">Memuat data...</div>
 
     <!-- Error -->
     <div v-else-if="store.error" class="p-6 bg-red-50 text-red-700 rounded-lg">
@@ -117,26 +118,54 @@ const sortedKeys = computed(() => Object.keys(filteredGrouped.value).sort())
 
     <!-- Grouped Tables -->
     <div v-else class="space-y-8">
-      <div v-for="golonganKey in sortedKeys" :key="golonganKey" class="bg-white rounded-lg shadow-sm overflow-hidden">
-
+      <div
+        v-for="golonganKey in sortedKeys"
+        :key="golonganKey"
+        class="bg-white rounded-lg shadow-sm overflow-hidden"
+      >
         <!-- Golongan Header -->
-        <div class="px-5 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between">
+        <div
+          class="px-5 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between"
+        >
           <div>
             <span class="text-lg font-bold text-indigo-800">Golongan {{ golonganKey }}</span>
-            <span v-if="store.uniqueGolongan.find(g => (g.sub_golongan ? `${g.golongan}${g.sub_golongan}` : g.golongan) === golonganKey)" class="ml-3 text-sm text-indigo-600">
-              {{ store.uniqueGolongan.find(g => (g.sub_golongan ? `${g.golongan}${g.sub_golongan}` : g.golongan) === golonganKey)?.pangkat }}
+            <span
+              v-if="
+                store.uniqueGolongan.find(
+                  (g) =>
+                    (g.sub_golongan ? `${g.golongan}${g.sub_golongan}` : g.golongan) ===
+                    golonganKey,
+                )
+              "
+              class="ml-3 text-sm text-indigo-600"
+            >
+              {{
+                store.uniqueGolongan.find(
+                  (g) =>
+                    (g.sub_golongan ? `${g.golongan}${g.sub_golongan}` : g.golongan) ===
+                    golonganKey,
+                )?.pangkat
+              }}
             </span>
           </div>
-          <span class="text-xs text-indigo-400">{{ filteredGrouped[golonganKey]?.length }} data</span>
+          <span class="text-xs text-indigo-400"
+            >{{ filteredGrouped[golonganKey]?.length }} data</span
+          >
         </div>
 
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm">
             <thead class="bg-gray-50">
               <tr>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase w-24">MK (tahun)</th>
-                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Gaji</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Peraturan</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase w-24">
+                  MK (tahun)
+                </th>
+                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                  Gaji
+                </th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  Peraturan
+                </th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">

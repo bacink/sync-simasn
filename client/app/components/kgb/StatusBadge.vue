@@ -1,44 +1,44 @@
 <script setup lang="ts">
 interface Props {
-  status: 'draft' | 'diajukan' | 'diverifikasi' | 'disetujui' | 'ditolak'
+  status: "draft" | "diajukan" | "diverifikasi" | "disetujui" | "ditolak";
 }
 
-const props = defineProps<Props>()
+const props = defineProps<Props>();
 
 const statusConfig = {
   draft: {
-    label: 'Draft',
-    bg: 'bg-gray-100',
-    text: 'text-gray-700',
-    dot: 'bg-gray-400',
+    label: "Draft",
+    bg: "bg-gray-100",
+    text: "text-gray-700",
+    dot: "bg-gray-400",
   },
   diajukan: {
-    label: 'Diajukan',
-    bg: 'bg-blue-50',
-    text: 'text-blue-700',
-    dot: 'bg-blue-500',
+    label: "Diajukan",
+    bg: "bg-blue-50",
+    text: "text-blue-700",
+    dot: "bg-blue-500",
   },
   diverifikasi: {
-    label: 'Diverifikasi',
-    bg: 'bg-amber-50',
-    text: 'text-amber-700',
-    dot: 'bg-amber-400',
+    label: "Diverifikasi",
+    bg: "bg-amber-50",
+    text: "text-amber-700",
+    dot: "bg-amber-400",
   },
   disetujui: {
-    label: 'Disetujui',
-    bg: 'bg-green-50',
-    text: 'text-green-700',
-    dot: 'bg-green-500',
+    label: "Disetujui",
+    bg: "bg-green-50",
+    text: "text-green-700",
+    dot: "bg-green-500",
   },
   ditolak: {
-    label: 'Ditolak',
-    bg: 'bg-red-50',
-    text: 'text-red-700',
-    dot: 'bg-red-400',
+    label: "Ditolak",
+    bg: "bg-red-50",
+    text: "text-red-700",
+    dot: "bg-red-400",
   },
-}
+};
 
-const config = computed(() => statusConfig[props.status] ?? statusConfig.draft)
+const config = computed(() => statusConfig[props.status] ?? statusConfig.draft);
 </script>
 
 <template>

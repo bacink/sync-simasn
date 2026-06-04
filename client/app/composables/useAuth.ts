@@ -1,7 +1,7 @@
-import { useAuthStore } from '~/stores/auth.store'
+import { useAuthStore } from "~/stores/auth.store";
 
 export function useAuth() {
-  const authStore = useAuthStore()
+  const authStore = useAuthStore();
 
   return {
     isAuthenticated: computed(() => authStore.isAuthenticated),
@@ -12,6 +12,6 @@ export function useAuth() {
     isOperator: computed(() => authStore.isOperator),
     login: authStore.login,
     logout: authStore.logout,
-    fetchUser: authStore.fetchUser
-  }
+    fetchUser: authStore.fetchUser,
+  };
 }

@@ -43,7 +43,9 @@ class AuthService
      */
     public function logout(): JsonResponse
     {
-        $user = Auth::user();
+        $request = request();
+        $guard = Auth::guard('sanctum')->setRequest($request);
+        $user = $guard->user();
         if (! $user) {
             return ApiResponse::success(null, ['message' => 'Already logged out']);
         }
@@ -57,7 +59,31 @@ class AuthService
             // TransientToken has no delete(); ignore
         }
 
+        // Invalidate the cached user on the singleton guard so subsequent
+        // requests in the same process do not reuse the now-deleted token.
+        $this->clearGuardUserCache($guard);
+
         return ApiResponse::success(null, ['message' => 'Logged out successfully']);
+    }
+
+    /**
+     * Clear the cached user on a RequestGuard singleton.
+     *
+     * RequestGuard caches the authenticated user per-instance. Since
+     * Auth::guard() returns the same singleton within a process, we must
+     * manually clear the cache after token revocation so that subsequent
+     * requests re-validate against the (now-deleted) token.
+     */
+    private function clearGuardUserCache(mixed $guard): void
+    {
+        try {
+            $reflection = new \ReflectionClass($guard);
+            $property = $reflection->getProperty('user');
+            $property->setAccessible(true);
+            $property->setValue($guard, null);
+        } catch (\Throwable) {
+            // Ignore if reflection fails (e.g. if guard implementation changes).
+        }
     }
 
     /**

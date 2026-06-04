@@ -10,21 +10,68 @@
         }
     ],
     "settings": {
+        "files.eol": "\n",
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true,
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+            "source.fixAll.eslint": "explicit",
+            "source.organizeImports": "never"
+        },
         "files.associations": {
             "*.css": "tailwindcss"
         },
-        "editor.formatOnSave": true,
-        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "search.exclude": {
+            "**/vendor": true,
+            "**/node_modules": true,
+            "**/storage": true,
+            "**/bootstrap/cache": true,
+            "**/.nuxt": true,
+            "**/.output": true,
+            "**/dist": true
+        },
         "[php]": {
-            "editor.defaultFormatter": "bmewburn.vscode-intelephense-client"
+            "editor.defaultFormatter": "bmewburn.vscode-intelephense-client",
+            "editor.formatOnSave": false
+        },
+        "[javascript]": {
+            "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[typescript]": {
+            "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[vue]": {
+            "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[json]": {
+            "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[jsonc]": {
+            "editor.defaultFormatter": "esbenp.prettier-vscode"
         },
         "intelephense.environment.phpVersion": "8.3.0",
-        "intelephense.laravel.registration": "api/storage/framework/cache/data",
+        "intelephense.files.exclude": [
+            "**/vendor/**",
+            "**/storage/**",
+            "**/bootstrap/cache/**"
+        ],
+        "intelephense.diagnostics.undefinedTypes": false,
+        "intelephense.diagnostics.undefinedMethods": false,
+        "intelephense.licenceKey": "",
         "tailwindCSS.experimental.classRegex": [
             ["\\b(?:twMerge|twJoin|clsx|classnames)\\(([^)]*)\\)", "'([^']*)'"]
         ],
         "typescript.tsdk": "client/node_modules/typescript/lib",
-        "volar.autoInsert.dotValue": true
+        "typescript.enablePromptUseWorkspaceTsdk": true,
+        "volar.autoInsert.dotValue": true,
+        "vue.server.hybridMode": true,
+        "javascript.preferences.importModuleSpecifier": "shortest",
+        "typescript.preferences.importModuleSpecifier": "shortest",
+        "eslint.workingDirectories": [
+            "client"
+        ],
+        "php.validate.executablePath": "/usr/bin/php"
     },
     "extensions": {
         "recommendations": [
@@ -32,14 +79,17 @@
             "bmewburn.vscode-intelephense-client",
             "bradlc.vscode-tailwindcss",
             "christian-kohler.path-intellisense",
+            "dbaeumer.vscode-eslint",
             "donjayamanne.githistory",
             "editorconfig.editorconfig",
             "esbenp.prettier-vscode",
             "meysinaliautoclose.autoclose",
             "mikestead.dotenv",
+            "ms-playwright.playwright",
             "onecentlin.laravel-blade",
             "shufo.vscode-blade-formatter",
             "vue.volar",
+            "vitest.explorer",
             "unifiedjs.vscode-mdx"
         ]
     }

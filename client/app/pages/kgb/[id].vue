@@ -1,124 +1,120 @@
 <script setup lang="ts">
-import { useKgbStore } from '~/stores/kgb.store'
-import { useAuthStore } from '~/stores/auth.store'
+import { useKgbStore } from "~/stores/kgb.store";
+import { useAuthStore } from "~/stores/auth.store";
 
-const route = useRoute()
-const kgbStore = useKgbStore()
-const authStore = useAuthStore()
-const router = useRouter()
+const route = useRoute();
+const kgbStore = useKgbStore();
+const authStore = useAuthStore();
+const router = useRouter();
 
-const kgbId = computed(() => Number(route.params.id))
+const kgbId = computed(() => Number(route.params.id));
 
 onMounted(async () => {
-  await kgbStore.fetchById(kgbId.value)
-})
+  await kgbStore.fetchById(kgbId.value);
+});
 
-const loadingAction = ref(false)
-const actionError = ref<string | null>(null)
-const actionSuccess = ref<string | null>(null)
-const showRejectModal = ref(false)
-const rejectCatatan = ref('')
+const loadingAction = ref(false);
+const actionError = ref<string | null>(null);
+const actionSuccess = ref<string | null>(null);
+const showRejectModal = ref(false);
+const rejectCatatan = ref("");
 
 async function handleSubmit() {
-  loadingAction.value = true
-  actionError.value = null
-  actionSuccess.value = null
+  loadingAction.value = true;
+  actionError.value = null;
+  actionSuccess.value = null;
   try {
-    await kgbStore.submit(kgbId.value)
-    actionSuccess.value = 'KGB berhasil diajukan.'
+    await kgbStore.submit(kgbId.value);
+    actionSuccess.value = "KGB berhasil diajukan.";
   } catch (e: any) {
-    actionError.value = e.data?.message || 'Gagal mengajukan KGB'
+    actionError.value = e.data?.message || "Gagal mengajukan KGB";
   } finally {
-    loadingAction.value = false
+    loadingAction.value = false;
   }
 }
 
 async function handleVerify() {
-  loadingAction.value = true
-  actionError.value = null
-  actionSuccess.value = null
+  loadingAction.value = true;
+  actionError.value = null;
+  actionSuccess.value = null;
   try {
-    await kgbStore.verify(kgbId.value)
-    actionSuccess.value = 'KGB berhasil diverifikasi.'
+    await kgbStore.verify(kgbId.value);
+    actionSuccess.value = "KGB berhasil diverifikasi.";
   } catch (e: any) {
-    actionError.value = e.data?.message || 'Gagal memverifikasi KGB'
+    actionError.value = e.data?.message || "Gagal memverifikasi KGB";
   } finally {
-    loadingAction.value = false
+    loadingAction.value = false;
   }
 }
 
 async function handleApprove() {
-  loadingAction.value = true
-  actionError.value = null
-  actionSuccess.value = null
+  loadingAction.value = true;
+  actionError.value = null;
+  actionSuccess.value = null;
   try {
-    await kgbStore.approve(kgbId.value)
-    actionSuccess.value = 'KGB berhasil disetujui.'
+    await kgbStore.approve(kgbId.value);
+    actionSuccess.value = "KGB berhasil disetujui.";
   } catch (e: any) {
-    actionError.value = e.data?.message || 'Gagal menyetujui KGB'
+    actionError.value = e.data?.message || "Gagal menyetujui KGB";
   } finally {
-    loadingAction.value = false
+    loadingAction.value = false;
   }
 }
 
 async function handleReject() {
-  if (!rejectCatatan.value.trim()) return
-  loadingAction.value = true
-  actionError.value = null
+  if (!rejectCatatan.value.trim()) return;
+  loadingAction.value = true;
+  actionError.value = null;
   try {
-    await kgbStore.reject(kgbId.value, rejectCatatan.value)
-    showRejectModal.value = false
-    actionSuccess.value = 'KGB berhasil ditolak.'
+    await kgbStore.reject(kgbId.value, rejectCatatan.value);
+    showRejectModal.value = false;
+    actionSuccess.value = "KGB berhasil ditolak.";
   } catch (e: any) {
-    actionError.value = e.data?.message || 'Gagal menolak KGB'
+    actionError.value = e.data?.message || "Gagal menolak KGB";
   } finally {
-    loadingAction.value = false
+    loadingAction.value = false;
   }
 }
 
 function getStatusColor(status: string) {
   const colors: Record<string, string> = {
-    draft: 'bg-gray-100 text-gray-800',
-    diajukan: 'bg-blue-100 text-blue-800',
-    diverifikasi: 'bg-yellow-100 text-yellow-800',
-    disetujui: 'bg-green-100 text-green-800',
-    ditolak: 'bg-red-100 text-red-800'
-  }
-  return colors[status] || 'bg-gray-100'
+    draft: "bg-gray-100 text-gray-800",
+    diajukan: "bg-blue-100 text-blue-800",
+    diverifikasi: "bg-yellow-100 text-yellow-800",
+    disetujui: "bg-green-100 text-green-800",
+    ditolak: "bg-red-100 text-red-800",
+  };
+  return colors[status] || "bg-gray-100";
 }
 
 function formatCurrency(val: number) {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0
-  }).format(val)
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(val);
 }
 
 function formatDate(dateStr: string) {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('id-ID', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric'
-  })
+  if (!dateStr) return "-";
+  return new Date(dateStr).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
 }
 
-const currentStatus = computed(() => kgbStore.currentItem?.status)
+const currentStatus = computed(() => kgbStore.currentItem?.status);
 </script>
 
 <template>
   <div>
     <div class="flex items-center gap-4 mb-6">
-      <button @click="router.back()" class="text-gray-500 hover:text-gray-700">
-        ← Kembali
-      </button>
+      <button @click="router.back()" class="text-gray-500 hover:text-gray-700">← Kembali</button>
       <h1 class="text-2xl font-bold text-gray-900">Detail KGB</h1>
     </div>
 
-    <div v-if="kgbStore.isLoading" class="p-12 text-center text-gray-500">
-      Memuat...
-    </div>
+    <div v-if="kgbStore.isLoading" class="p-12 text-center text-gray-500">Memuat...</div>
 
     <div v-else-if="!kgbStore.currentItem" class="p-12 text-center text-gray-500">
       Data KGB tidak ditemukan.
@@ -163,7 +159,10 @@ const currentStatus = computed(() => kgbStore.currentItem?.status)
             Setujui
           </button>
           <button
-            v-if="(currentStatus === 'diajukan' || currentStatus === 'diverifikasi') && (authStore.isVerifikator || authStore.isAdmin)"
+            v-if="
+              (currentStatus === 'diajukan' || currentStatus === 'diverifikasi') &&
+              (authStore.isVerifikator || authStore.isAdmin)
+            "
             @click="showRejectModal = true"
             class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
           >
@@ -201,7 +200,8 @@ const currentStatus = computed(() => kgbStore.currentItem?.status)
             <div class="flex justify-between">
               <dt class="text-gray-500">Masa Kerja</dt>
               <dd class="font-medium">
-                {{ kgbStore.currentItem.masa_kerja_tahun }} tahun {{ kgbStore.currentItem.masa_kerja_bulan }} bulan
+                {{ kgbStore.currentItem.masa_kerja_tahun }} tahun
+                {{ kgbStore.currentItem.masa_kerja_bulan }} bulan
               </dd>
             </div>
           </dl>
@@ -217,7 +217,9 @@ const currentStatus = computed(() => kgbStore.currentItem?.status)
             </div>
             <div class="flex justify-between">
               <dt class="text-gray-500">Gaji Baru</dt>
-              <dd class="font-medium text-green-600">{{ formatCurrency(kgbStore.currentItem.gaji_baru) }}</dd>
+              <dd class="font-medium text-green-600">
+                {{ formatCurrency(kgbStore.currentItem.gaji_baru) }}
+              </dd>
             </div>
             <div class="flex justify-between">
               <dt class="text-gray-500">TMT KGB</dt>

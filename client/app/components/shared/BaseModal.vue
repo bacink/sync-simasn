@@ -1,16 +1,16 @@
 <script setup lang="ts">
 const props = defineProps<{
-  modelValue: boolean
-  title?: string
-  size?: 'sm' | 'md' | 'lg'
-}>()
+  modelValue: boolean;
+  title?: string;
+  size?: "sm" | "md" | "lg";
+}>();
 
-defineEmits<{ 'update:modelValue': [value: boolean] }>()
+defineEmits<{ "update:modelValue": [value: boolean] }>();
 
 function close() {
   // Use v-model pattern
-  const input = event?.target as HTMLElement
-  if (input?.closest('.modal-content')) return
+  const input = event?.target as HTMLElement;
+  if (input?.closest(".modal-content")) return;
   // Parent handles via v-model
 }
 </script>
@@ -30,10 +30,13 @@ function close() {
               'max-w-sm': size === 'sm',
               'max-w-md': size === 'md' || !size,
               'max-w-2xl': size === 'lg',
-            }
+            },
           ]"
         >
-          <div v-if="title" class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div
+            v-if="title"
+            class="px-6 py-4 border-b border-gray-200 flex items-center justify-between"
+          >
             <h3 class="text-lg font-semibold">{{ title }}</h3>
             <button
               @click="$emit('update:modelValue', false)"
@@ -45,7 +48,10 @@ function close() {
           <div class="p-6">
             <slot />
           </div>
-          <div v-if="$slots.footer" class="px-6 py-4 border-t border-gray-200 flex gap-3 justify-end">
+          <div
+            v-if="$slots.footer"
+            class="px-6 py-4 border-t border-gray-200 flex gap-3 justify-end"
+          >
             <slot name="footer" />
           </div>
         </div>

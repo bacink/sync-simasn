@@ -26,28 +26,45 @@ class SimAsnServiceTest extends TestCase
         parent::tearDown();
     }
 
+    private function makePegawaiStub(array $methods): PegawaiModule
+    {
+        // PegawaiModule uses __call for getDetail/getList, so we use an
+        // anonymous class that extends PegawaiModule to provide test doubles.
+        return new class($methods) extends PegawaiModule
+        {
+            public function __construct(private array $methods) {}
+
+            public function setAccessToken(string $token): static
+            {
+                return $this;
+            }
+
+            public function __call(string $name, array $args)
+            {
+                if (isset($this->methods[$name])) {
+                    return ($this->methods[$name])(...$args);
+                }
+                throw new \Exception("Stub method {$name} not configured");
+            }
+        };
+    }
+
     public function test_get_pegawai_returns_formatted_array(): void
     {
-        $mockPegawai = new class
+        $mockDetail = new class
         {
             public function toArray(): array
             {
-                return ['nip' => '19900101', 'nama' => 'John Doe'];
+                return ['nip' => '19900101', 'nama' => 'John Doe', 'jabatan' => 'Staff'];
             }
         };
 
-        $pegawaiModule = $this->getMockBuilder(PegawaiModule::class)
-            ->disableOriginalConstructor()
-            ->addMethods(['getDetail'])
-            ->getMock();
-
-        $pegawaiModule->expects($this->once())
-            ->method('getDetail')
-            ->with('12345')
-            ->willReturn($mockPegawai);
+        $stub = $this->makePegawaiStub([
+            'getDetail' => fn ($id) => $mockDetail,
+        ]);
 
         $client = $this->createMock(AppClient::class);
-        $client->method('pegawai')->willReturn($pegawaiModule);
+        $client->method('pegawai')->willReturn($stub);
 
         $app = $this->createMock(Application::class);
         $app->method('make')->with(AppClient::class)->willReturn($client);
@@ -58,27 +75,23 @@ class SimAsnServiceTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertEquals('John Doe', $result['nama']);
+        $this->assertEquals('19900101', $result['nip']);
     }
 
     public function test_search_pegawai_returns_items_from_paginator(): void
     {
         $paginator = $this->createMock(LengthAwarePaginator::class);
         $paginator->method('items')->willReturn([
-            ['nama' => 'User A'],
-            ['nama' => 'User B'],
+            ['nama' => 'User A', 'nip' => '1'],
+            ['nama' => 'User B', 'nip' => '2'],
         ]);
 
-        $pegawaiModule = $this->getMockBuilder(PegawaiModule::class)
-            ->disableOriginalConstructor()
-            ->addMethods(['getList'])
-            ->getMock();
-
-        $pegawaiModule->expects($this->once())
-            ->method('getList')
-            ->willReturn($paginator);
+        $stub = $this->makePegawaiStub([
+            'getList' => fn ($params) => $paginator,
+        ]);
 
         $client = $this->createMock(AppClient::class);
-        $client->method('pegawai')->willReturn($pegawaiModule);
+        $client->method('pegawai')->willReturn($stub);
 
         $app = $this->createMock(Application::class);
         $app->method('make')->with(AppClient::class)->willReturn($client);
@@ -89,6 +102,7 @@ class SimAsnServiceTest extends TestCase
 
         $this->assertCount(2, $results);
         $this->assertEquals('User A', $results[0]['nama']);
+        $this->assertEquals('User B', $results[1]['nama']);
     }
 
     public function test_list_pegawai_paginator_returns_length_aware_paginator(): void
@@ -97,18 +111,17 @@ class SimAsnServiceTest extends TestCase
         $paginator->method('total')->willReturn(150);
         $paginator->method('lastPage')->willReturn(3);
 
-        $pegawaiModule = $this->getMockBuilder(PegawaiModule::class)
-            ->disableOriginalConstructor()
-            ->addMethods(['getList'])
-            ->getMock();
+        $stub = $this->makePegawaiStub([
+            'getList' => function ($params) use ($paginator) {
+                $this->assertEquals(50, $params['per_page']);
+                $this->assertEquals(2, $params['page']);
 
-        $pegawaiModule->expects($this->once())
-            ->method('getList')
-            ->with($this->callback(fn ($params) => $params['per_page'] === 50 && $params['page'] === 2))
-            ->willReturn($paginator);
+                return $paginator;
+            },
+        ]);
 
         $client = $this->createMock(AppClient::class);
-        $client->method('pegawai')->willReturn($pegawaiModule);
+        $client->method('pegawai')->willReturn($stub);
 
         $app = $this->createMock(Application::class);
         $app->method('make')->with(AppClient::class)->willReturn($client);

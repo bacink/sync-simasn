@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { useAuthStore } from '~/stores/auth.store'
+import { useAuthStore } from "~/stores/auth.store";
 
-const authStore = useAuthStore()
-const router = useRouter()
+const authStore = useAuthStore();
+const router = useRouter();
 
 // Protect all non-auth pages
 if (!authStore.isLoggedIn) {
-  router.push('/login')
+  router.push("/login");
 }
 
 definePageMeta({
-  middleware: ['auth']
-})
+  middleware: ["auth"],
+});
 </script>
 
 <template>
